@@ -1,0 +1,1 @@
+g++ -std=c++17 -O3 -march=native -flto -Wall -Wextra -DNDEBUG -o ./bin/Neptune src/*.cpp
