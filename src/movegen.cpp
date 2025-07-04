@@ -21,17 +21,17 @@ void GenerateCastlingMoves(uint8_t castlingRights, uint64_t all, std::vector<Mov
 
 void GenerateSlidingMoves(uint64_t pieces, const int directions[][2], int dirCount, uint64_t own, uint64_t enemy, std::vector<Move>& moves) {
     while (pieces) {
-        int sq = __builtin_ctzll(pieces);
+        uint8_t sq = static_cast<uint8_t>(__builtin_ctzll(pieces));
         pieces &= pieces - 1;
 
-        int rank = sq >> 3;
-        int file = sq & 7;
+        uint8_t rank = sq >> 3;
+        uint8_t file = sq & 7;
 
         for (int d = 0; d < dirCount; d++) {
             int r = rank + directions[d][0];
             int f = file + directions[d][1];
             while (r >= 0 && r < 8 && f >= 0 && f < 8) {
-                int target = r * 8 + f;
+                uint8_t target = static_cast<uint8_t>(r * 8 + f);
                 uint64_t targetBB = bitMasks[target];
                 if (own & targetBB) break;
                 moves.push_back(Move(sq, target));
@@ -45,14 +45,14 @@ void GenerateSlidingMoves(uint64_t pieces, const int directions[][2], int dirCou
 
 void GenerateNonSlidingMoves(uint64_t pieces, const uint64_t attackTable[64], uint64_t own, std::vector<Move>& moves) {
     while (pieces) {
-        int sq = __builtin_ctzll(pieces);
+        uint8_t sq = static_cast<uint8_t>(__builtin_ctzll(pieces));
         pieces &= pieces - 1;
 
         uint64_t attacks = attackTable[sq];
         attacks &= ~own;
 
         while (attacks) {
-            int target = __builtin_ctzll(attacks);
+            uint8_t target = static_cast<uint8_t>(__builtin_ctzll(attacks));
             attacks &= attacks - 1;
             moves.push_back(Move(sq, target));
         }
@@ -60,19 +60,21 @@ void GenerateNonSlidingMoves(uint64_t pieces, const uint64_t attackTable[64], ui
 }
 
 
-void GeneratePawnMoves(uint64_t pawns, uint64_t enemy, uint64_t all, std::vector<Move>& moves, Color color, uint8_t epSquare = 64) {
+void GeneratePawnMoves(uint64_t pawns, uint64_t enemy, uint64_t all, std::vector<Move>& moves, Color color, uint8_t epSquare = 0) {
     int forward = (color == WHITE) ? 8 : -8;
-    int startRank = (color == WHITE) ? 1 : 6;
-    int promotionRank = (color == WHITE) ? 6 : 1;
+    uint8_t startRank = (color == WHITE) ? 1 : 6;
+    uint8_t promotionRank = (color == WHITE) ? 6 : 1;
 
     while (pawns) {
-        int sq = __builtin_ctzll(pawns);
+        uint8_t sq = static_cast<uint8_t>(__builtin_ctzll(pawns));
         pawns &= pawns - 1;
 
-        int rank = sq >> 3;
+        uint8_t rank = sq >> 3;
 
-        int oneStep = sq + forward;
-        if (oneStep >= 0 && oneStep < 64 && !(all & bitMasks[oneStep])) {
+        int step = sq + forward;
+        if (step < 0 || step >= 64) continue;
+        uint8_t oneStep = static_cast<uint8_t>(step);
+        if (oneStep < 64 && !(all & bitMasks[oneStep])) {
             if (rank == promotionRank) {
                 moves.push_back(Move(sq, oneStep, 'q'));
                 moves.push_back(Move(sq, oneStep, 'r'));
@@ -82,8 +84,8 @@ void GeneratePawnMoves(uint64_t pawns, uint64_t enemy, uint64_t all, std::vector
                 moves.push_back(Move(sq, oneStep));
 
                 if (rank == startRank) {
-                    int twoStep = sq + 2 * forward;
-                    if (!(all & bitMasks[twoStep])) {
+                    uint8_t twoStep = static_cast<uint8_t>(sq + 2 * forward);
+                    if (!(all & bitMasks[twoStep]) && !(all & bitMasks[oneStep])) {
                         moves.push_back(Move(sq, twoStep));
                     }
                 }
@@ -94,7 +96,7 @@ void GeneratePawnMoves(uint64_t pawns, uint64_t enemy, uint64_t all, std::vector
         uint64_t normalCaptures = attacks & enemy;
 
         while (normalCaptures) {
-            int targetSq = __builtin_ctzll(normalCaptures);
+            uint8_t targetSq = static_cast<uint8_t>(__builtin_ctzll(normalCaptures));
             normalCaptures &= normalCaptures - 1;
 
             if (rank == promotionRank) {
@@ -107,10 +109,10 @@ void GeneratePawnMoves(uint64_t pawns, uint64_t enemy, uint64_t all, std::vector
             }
         }
 
-        if (epSquare < 64) {
-            uint64_t epBB = bitMasks[epSquare];
+        if ((epSquare & (1 << 6)) != 0) {
+            uint64_t epBB = bitMasks[epSquare & 0b111111];
             if ((attacks & epBB) != 0) {
-                moves.push_back(Move(sq, epSquare, 0, true));
+                moves.push_back(Move(static_cast<uint8_t>(sq), epSquare, 0, true));
             }
         }
     }
@@ -119,7 +121,7 @@ void GeneratePawnMoves(uint64_t pawns, uint64_t enemy, uint64_t all, std::vector
 std::vector<Move> GeneratePseudoLegalMoves(Board& board, bool isWhiteToMove) {
     std::vector<Move> moves;
     moves.reserve(256);
-    uint8_t epTarget = board.hasEnPassant() ? board.getEnPassantTarget() : 64;
+    uint8_t epTarget = board.hasEnPassant() ? board.getEnPassantTarget() : 0;
 
     if (isWhiteToMove) {
         GenerateSlidingMoves(board.whiteBishops, bishopDirs, std::size(bishopDirs), board.whitePieces, board.blackPieces, moves);
@@ -148,11 +150,11 @@ std::vector<Move> GenerateLegalMoves(Board& board) {
     legalMoves.reserve(pseudoMoves.size());
 
     for (const Move& move : pseudoMoves) {
-        Board temp = board;
-        temp.make_move(move);
-        if (!temp.is_king_in_check(!temp.whiteToMove)) { // check if own king is not in check
+        board.make_move(move);
+        if (!board.is_king_in_check(!board.whiteToMove)) { // check if own king is not in check
             legalMoves.push_back(move);
         }
+        board.unmake_move();
     }
 
     return legalMoves;

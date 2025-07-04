@@ -19,13 +19,13 @@ void ParsePieces(Board& board, std::string piecesField) {
         for (uint8_t j = 0; j < ranks[i].length(); j++) {
             char piece = ranks[i][j];
             if (isdigit(piece)) {
-                for (int k = 0; k < (piece - '0'); k++) {
-                    board.pieceAt[(7-i)*8 + file] = EMPTY;
+                for (uint8_t k = 0; k < (piece - '0'); k++) {
+                    board.pieceAt[static_cast<uint8_t>((7-i)*8 + file)] = EMPTY;
                     file++;
                 }
                 continue;
             }
-            uint8_t squareIndex = (7-i)*8 + file; // Board square index: a1 = 0, h8 = 63 (bottom-left to top-right)
+            uint8_t squareIndex = static_cast<uint8_t>((7-i)*8 + file); // Board square index: a1 = 0, h8 = 63 (bottom-left to top-right)
             switch (piece) {
                     case 'P': board.whitePawns     |= bitMasks[squareIndex]; board.pieceAt[squareIndex] = PAWN;   break;
                     case 'N': board.whiteKnights   |= bitMasks[squareIndex]; board.pieceAt[squareIndex] = KNIGHT; break;
@@ -84,7 +84,7 @@ void setBB(Board& board, const std::string& fen) {
         int file = fields[3][0] - 'a';
         int rank = fields[3][1] - '1';
         if (file >= 0 && file < 8 && rank >= 0 && rank < 8) {
-            board.enPassantSquare = epFlag | (rank * 8 + file);
+            board.enPassantSquare = static_cast<uint8_t>(epFlag | (rank * 8 + file));
         } else {
             std::cerr << "[Warning] Invalid en passant square in FEN: " << fields[3] << std::endl;
         }

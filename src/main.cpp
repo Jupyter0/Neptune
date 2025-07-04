@@ -34,7 +34,6 @@ void position(Board& board, const std::string& input) {
         setBB(board, fenString);
     }
 
-    // Parse moves if any
     size_t movesIndex = input.find(" moves ");
     if (movesIndex != std::string::npos) {
         std::string movesPart = input.substr(movesIndex + 7);
@@ -45,22 +44,45 @@ void position(Board& board, const std::string& input) {
         board.appliedMoves.clear();
     }
 
-    // Find first new move index
     size_t firstNewMove = 0;
     while (firstNewMove < board.appliedMoves.size() && firstNewMove < movesTokens.size()) {
-        // Compare applied moves and new moves by their UCI string
-        // Assume you have a function MoveToUCI(Move) and ParseUCIMove(string)
         std::string appliedMoveUCI = MoveToUCI(board.appliedMoves[firstNewMove]);
         if (appliedMoveUCI != movesTokens[firstNewMove]) break;
         firstNewMove++;
     }
 
-    // Apply only new moves
     for (size_t i = firstNewMove; i < movesTokens.size(); ++i) {
         Move m = parseUCIMove(movesTokens[i]);
         board.make_move(m);
         board.appliedMoves.push_back(m);
     }
+}
+
+int perft(Board& board, int depth) {
+    int legalChildren = 0;
+    if (depth == 0) return 1;
+    std::vector<Move> legalMoves = GenerateLegalMoves(board);
+    if (depth == 1) return static_cast<int>(legalMoves.size());
+    for (const Move& move :legalMoves) {
+        board.make_move(move);
+        legalChildren += perft(board, depth-1);
+        board.unmake_move();
+    }
+    return legalChildren;
+}
+
+int perft_divide(Board& board, int depth) {
+    int total = 0;
+    if (depth == 0) return 1;
+    std::vector<Move> legalMoves = GenerateLegalMoves(board);
+    for (const Move& move : legalMoves) {
+        board.make_move(move);
+        int nodes = perft(board, depth - 1);
+        std::cout << MoveToUCI(move) << ": " << nodes << std::endl;
+        total += nodes;
+        board.unmake_move();
+    }
+    return total;
 }
 
 int main() {
@@ -77,18 +99,11 @@ int main() {
         } else if (line.rfind("position", 0) == 0) {
             position(board, line);
         } else if (line.rfind("go", 0) == 0) {
-            std::vector<Move> legalMoves = GenerateLegalMoves(board);
-            std::cout << "Legal Moves: ";
-            for (const Move& move : legalMoves) {
-                std::cout << indexToSquare(move.from) 
-                        << indexToSquare(move.to);
-                if (move.promotion != 0) {
-                    std::cout << static_cast<char>(move.promotion);
-                }
-                std::cout << " ";
+            if (line.rfind("go perft", 0) == 0) {
+                int depth = line.substr(0, 10)[9] - '0';
+                int nodes = perft_divide(board, depth);
+                std::cout << "Nodes searched: " << nodes << std::endl << std::flush;
             }
-            std::cout << std::endl << "Found: " << legalMoves.size() << " Legal Moves" << std::endl;
-            std::cout << std::flush;
         } else if (line == "stop") {
             //Stop calculating as soon as possible
             //Must respond with bestmove of the best move found so far

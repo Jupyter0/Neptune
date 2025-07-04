@@ -5,6 +5,11 @@
 #include <cstdint>
 #include <string>
 
+inline constexpr unsigned char operator "" _uchar( unsigned long long arg ) noexcept
+{
+    return static_cast< unsigned char >( arg );
+}
+
 constexpr int bishopDirs[4][2] = {{1, 1}, {1, -1}, {-1, 1}, {-1, -1}};
 constexpr int rookDirs[4][2] = {{0, 1}, {0, -1}, {-1, 0}, {1, 0}};
 constexpr int queenDirs[8][2] = {{1, 1}, {1, -1}, {-1, 1}, {-1, -1}, {0, 1}, {0, -1}, {-1, 0}, {1, 0}};
@@ -150,12 +155,12 @@ enum Color {
 };
 
 struct Move {
-    int from;
-    int to;
+    uint8_t from;
+    uint8_t to;
     char promotion = 0;
     bool isEnPassant = false;
 
-    Move(int From, int To, char Promotion = 0, bool EP = false) : from(From), to(To), promotion(Promotion), isEnPassant(EP) {}
+    Move(uint8_t From, uint8_t To, char Promotion = 0, bool EP = false) : from(From), to(To), promotion(Promotion), isEnPassant(EP) {}
 };
 
 constexpr std::array<Piece, 128> promotionCharToPiece = [] {
@@ -167,7 +172,36 @@ constexpr std::array<Piece, 128> promotionCharToPiece = [] {
     return table;
 }();
 
-std::string indexToSquare(int index);
+struct MoveState {
+    uint64_t whitePawns, whiteKnights, whiteBishops, whiteRooks, whiteQueens, whiteKing;
+    uint64_t blackPawns, blackKnights, blackBishops, blackRooks, blackQueens, blackKing;
+
+    uint64_t whitePieces;
+    uint64_t blackPieces;
+    uint64_t allPieces;
+
+    uint8_t whiteKingPos;
+    uint8_t blackKingPos;
+
+    uint64_t whiteAttacks;
+    uint64_t blackAttacks;
+
+    bool whiteToMove;
+
+    uint8_t castlingRights; //0b0000KQkq K: WKS, Q: WQS, k: BKS, q: BQS
+    uint8_t enPassantSquare; //0b0fdddddd f: flag, d: data
+
+    int halfmoveClock; //Used for 50-move rule
+    int fullmoveNumber; //Counts the move number
+
+    uint64_t zobristKey = 0; //Zobrist Hash !!Don't use this, this feature is not yet implemented!!
+
+    Piece pieceAt[64] = {EMPTY};
+
+    std::vector<Move> appliedMoves;
+};
+
+std::string indexToSquare(uint8_t index);
 
 Piece charToPiece(char pieceChar);
 

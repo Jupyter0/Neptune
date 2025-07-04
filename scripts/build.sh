@@ -1,1 +1,6 @@
-g++ -std=c++17 -O3 -march=native -flto -Wall -Wextra -DNDEBUG -o ./bin/Neptune src/*.cpp
+g++ -std=c++17 -O0 -g \
+    -Wall -Wextra -Werror -pedantic \
+    -Wshadow -Wconversion -Wsign-conversion \
+    -fsanitize=undefined,address \
+    -fno-omit-frame-pointer \
+    -o ./bin/Neptune src/*.cpp
