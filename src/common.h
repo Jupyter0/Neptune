@@ -158,7 +158,7 @@ struct Move {
     uint8_t from;
     uint8_t to;
     char promotion = 0;
-    bool isEnPassant = false;
+    bool isEnPassant;
 
     Move(uint8_t From, uint8_t To, char Promotion = 0, bool EP = false) : from(From), to(To), promotion(Promotion), isEnPassant(EP) {}
 };

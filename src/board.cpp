@@ -107,7 +107,7 @@ void Board::make_move(Move move) {
         halfmoveClock = 0;
         if (move.isEnPassant) {
             int capSq = isWhite ? to - 8 : to + 8;
-            *bitboards[!isWhite][0] &= ~bitMasks[capSq];
+            *bitboards[1-mySide][0] &= ~bitMasks[capSq];
             pieceAt[capSq] = EMPTY;
         }
         if (isWhite && (fromBB & rank2) && (toBB & rank4)) {

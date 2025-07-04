@@ -109,8 +109,8 @@ void GeneratePawnMoves(uint64_t pawns, uint64_t enemy, uint64_t all, std::vector
             }
         }
 
-        if ((epSquare & (1 << 6)) != 0) {
-            uint64_t epBB = bitMasks[epSquare & 0b111111];
+        if (epSquare != 0) {
+            uint64_t epBB = bitMasks[epSquare];
             if ((attacks & epBB) != 0) {
                 moves.push_back(Move(static_cast<uint8_t>(sq), epSquare, 0, true));
             }
