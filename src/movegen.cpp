@@ -92,7 +92,7 @@ void GeneratePawnMoves(uint64_t pawns, uint64_t enemy, uint64_t all, std::vector
             }
         }
 
-        uint64_t attacks = pawnAttacks[color][sq];
+        uint64_t attacks = attacksBB[WHITE][color][sq];
         uint64_t normalCaptures = attacks & enemy;
 
         while (normalCaptures) {
@@ -122,24 +122,18 @@ std::vector<Move> GeneratePseudoLegalMoves(Board& board, bool isWhiteToMove) {
     std::vector<Move> moves;
     moves.reserve(256);
     uint8_t epTarget = board.hasEnPassant() ? board.getEnPassantTarget() : 0;
+    Color color = static_cast<Color>(isWhiteToMove ? WHITE : BLACK);
 
-    if (isWhiteToMove) {
-        GenerateSlidingMoves(board.whiteBishops, bishopDirs, std::size(bishopDirs), board.whitePieces, board.blackPieces, moves);
-        GenerateSlidingMoves(board.whiteRooks,   rookDirs,   std::size(rookDirs),   board.whitePieces, board.blackPieces, moves);
-        GenerateSlidingMoves(board.whiteQueens,  queenDirs,  std::size(queenDirs),  board.whitePieces, board.blackPieces, moves);
-        GenerateNonSlidingMoves(board.whiteKnights, knightAttacks, board.whitePieces, moves);
-        GenerateNonSlidingMoves(board.whiteKing, kingAttacks, board.whitePieces, moves);
-        GeneratePawnMoves(board.whitePawns, board.blackPieces, board.allPieces, moves, WHITE, epTarget);
-        if (!board.is_king_in_check(true)) GenerateCastlingMoves(board.castlingRights, board.allPieces, moves, WHITE, board.whiteAttacks, board.blackAttacks);
-    } else {
-        GenerateSlidingMoves(board.blackBishops, bishopDirs, std::size(bishopDirs), board.blackPieces, board.whitePieces, moves);
-        GenerateSlidingMoves(board.blackRooks,   rookDirs,   std::size(rookDirs),   board.blackPieces, board.whitePieces, moves);
-        GenerateSlidingMoves(board.blackQueens,  queenDirs,  std::size(queenDirs),  board.blackPieces, board.whitePieces, moves);
-        GenerateNonSlidingMoves(board.blackKnights, knightAttacks, board.blackPieces, moves);
-        GenerateNonSlidingMoves(board.blackKing, kingAttacks, board.blackPieces, moves);
-        GeneratePawnMoves(board.blackPawns, board.whitePieces, board.allPieces, moves, BLACK, epTarget);
-        if (!board.is_king_in_check(false)) GenerateCastlingMoves(board.castlingRights, board.allPieces, moves, BLACK, board.whiteAttacks, board.blackAttacks);
-    }
+    GenerateSlidingMoves(board.bitboards[color][BISHOP-1], dirs[BISHOP-1], 4, board.generalboards[color], board.generalboards[1-color], moves);
+    GenerateSlidingMoves(board.bitboards[color][ROOK-1], dirs[ROOK-1], 4, board.generalboards[color], board.generalboards[1-color], moves);
+    GenerateSlidingMoves(board.bitboards[color][QUEEN-1], dirs[QUEEN-1], 8, board.generalboards[color], board.generalboards[1-color], moves);
+
+    GenerateNonSlidingMoves(board.bitboards[color][KNIGHT-1], attacksBB[KNIGHT-1][color], board.generalboards[color], moves);
+    GenerateNonSlidingMoves(board.bitboards[color][KING-1], attacksBB[KING-1][color], board.generalboards[color], moves);
+    
+    GeneratePawnMoves(board.bitboards[color][PAWN-1], board.generalboards[1-color], board.generalboards[2], moves, color, epTarget);
+
+    if (!board.is_king_in_check(isWhiteToMove)) GenerateCastlingMoves(board.castlingRights, board.generalboards[2], moves, color, board.whiteAttacks, board.blackAttacks);
 
     return moves;
 };

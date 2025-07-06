@@ -45,3 +45,7 @@
 
 # binaries
 bin/
+
+#perf
+.perf
+.data

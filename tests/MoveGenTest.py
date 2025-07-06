@@ -125,7 +125,7 @@ if __name__ == "__main__":
         moves = []
         while True:
             line = proc.stdout.readline()
-            if "Found: " in line:
+            if "Speed" in line:
                 break
             if line == '' and proc.poll() is not None:
                 print("<<< Engine exited unexpectedly.")
@@ -134,6 +134,8 @@ if __name__ == "__main__":
                 if "Stock" in line: continue
                 if "info" in line: continue
                 if "Legal" in line: continue
+                if "Nodes" in line: continue
+                if "Time" in line: continue
                 move = line[0:5].strip(":")
                 moves.append(move.strip())
             if time.time() - start > 5:

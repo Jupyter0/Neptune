@@ -1,7 +1,3 @@
-#include <string>
-#include <stdexcept>
-#include <vector>
-#include <sstream>
 #include "common.h"
 
 std::string indexToSquare(uint8_t index) {

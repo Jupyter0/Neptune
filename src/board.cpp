@@ -1,113 +1,46 @@
-#include <cstdint>
-#include <string>
-#include <sstream>
-#include <vector>
-#include <iostream>
 #include "board.h"
-
-
-void Board::UpdateAttacks() {
-    whiteAttacks = 0ULL;
-    blackAttacks = 0ULL;
-
-    AddNonSlidingAttacks(whiteKnights, KNIGHT, WHITE, whiteAttacks);
-    AddNonSlidingAttacks(whiteKing, KING, WHITE, whiteAttacks);
-    AddNonSlidingAttacks(whitePawns, PAWN, WHITE, whiteAttacks);
-    AddNonSlidingAttacks(blackKnights, KNIGHT, BLACK, blackAttacks);
-    AddNonSlidingAttacks(blackKing, KING, BLACK, blackAttacks);
-    AddNonSlidingAttacks(blackPawns, PAWN, BLACK, blackAttacks);
-
-    AddSlidingAttacks(whiteBishops, BISHOP, WHITE, whiteAttacks);
-    AddSlidingAttacks(whiteRooks, ROOK, WHITE, whiteAttacks);
-    AddSlidingAttacks(whiteQueens, QUEEN, WHITE, whiteAttacks);
-    AddSlidingAttacks(blackBishops, BISHOP, BLACK, blackAttacks);
-    AddSlidingAttacks(blackRooks, ROOK, BLACK, blackAttacks);
-    AddSlidingAttacks(blackQueens, QUEEN, BLACK, blackAttacks);
-}
-void Board::AddSlidingAttacks(uint64_t pieces, Piece pieceType, Color color, uint64_t& attacks) {
-    if (pieceType == KNIGHT || pieceType == KING || pieceType == PAWN) return;
-    if (pieceType == QUEEN) {
-        AddSlidingAttacks(pieces, ROOK, color, attacks);
-        AddSlidingAttacks(pieces, BISHOP, color, attacks);
-        return;
-    }
-    uint64_t p = pieces;
-    while(p) {
-        uint8_t sq = static_cast<uint8_t>(__builtin_ctzll(p));
-        p &= p - 1;
-
-        switch (pieceType) {
-            case BISHOP: {
-                attacks |= CalculateSlidingAttacks(sq, bishopDirs, allPieces);
-                break;
-            }
-            case ROOK: {
-                attacks |= CalculateSlidingAttacks(sq, rookDirs, allPieces);
-                break;
-            }
-            default: break;
-        }
-    }
-}
-
-uint64_t Board::CalculateSlidingAttacks(uint64_t sq, const int directions[][2], uint64_t all) {
-    uint64_t rank = sq >> 3;
-    uint64_t file = sq & 7;
-    uint64_t attacks = 0;
-
-    for (int d = 0; d < 4; d++) {
-        int r = static_cast<int>(rank) + directions[d][0];
-        int f = static_cast<int>(file) + directions[d][1];
-        while (r >= 0 && r < 8 && f >= 0 && f < 8) {
-            int target = r * 8 + f;
-            uint64_t targetBB = bitMasks[target];
-            attacks |= targetBB;
-            if (all & targetBB) break;
-            r += directions[d][0];
-            f += directions[d][1];
-        }           
-    }
-    return attacks;
-}
-
-void Board::AddNonSlidingAttacks(uint64_t pieces, Piece pieceType, Color color, uint64_t& attacks) {
-    if (pieceType == BISHOP || pieceType == ROOK || pieceType == QUEEN) return;
-    uint64_t p = pieces;
-    while(p) {
-        uint8_t sq = static_cast<uint8_t>(__builtin_ctzll(p));
-        p &= p - 1;
-
-        switch (pieceType) {
-            case KNIGHT: attacks |= knightAttacks[sq]; break;
-            case KING: attacks |= kingAttacks[sq]; break;
-            case PAWN: attacks |= pawnAttacks[color][sq]; break;
-            default: break;
-        }
-    }
-}
+#include "attackgen.h"
 
 void Board::make_move(Move move) {
-    history.push_back(getSnapshot());
     uint8_t from = move.from;
     uint8_t to = move.to;
     bool isWhite = whiteToMove;
     uint64_t fromBB = bitMasks[from];
     uint64_t toBB = bitMasks[to];
-    enPassantSquare = 0;
-    halfmoveClock++;
     Piece movedPiece = pieceAt[from];
     Piece capturedPiece = pieceAt[to];
+    
+    MoveState snapshot;
+    snapshot.castlingRights = castlingRights;
+    snapshot.enPassantSquare = enPassantSquare;
+    snapshot.halfmoveClock = halfmoveClock;
+    snapshot.fullmoveNumber = fullmoveNumber;
+    snapshot.from = from;
+    snapshot.to = to;
+    snapshot.whiteToMove = whiteToMove;
+
+    snapshot.capturedPiece = capturedPiece;
+    snapshot.movedPiece = movedPiece;
+    snapshot.promotedPiece = charToPiece(move.promotion);
+    snapshot.enPassant = move.isEnPassant;
+    snapshot.whiteKingPos = whiteKingPos;
+    snapshot.blackKingPos = blackKingPos;
+
+    history[ply++] = snapshot;
+    
+    halfmoveClock++;
+    enPassantSquare = 0;
     pieceAt[to] = movedPiece;
 
     Color mySide = isWhite ? WHITE : BLACK;
 
     if (movedPiece == PAWN) {
-        *bitboards[mySide][0] &= ~fromBB;
-        *bitboards[mySide][0] |= toBB;
+        bitboards[mySide][0] &= ~fromBB;
+        bitboards[mySide][0] |= toBB;
         halfmoveClock = 0;
         if (move.isEnPassant) {
             int capSq = isWhite ? to - 8 : to + 8;
-            *bitboards[1-mySide][0] &= ~bitMasks[capSq];
+            bitboards[1-mySide][0] &= ~bitMasks[capSq];
             pieceAt[capSq] = EMPTY;
         }
         if (isWhite && (fromBB & rank2) && (toBB & rank4)) {
@@ -116,47 +49,48 @@ void Board::make_move(Move move) {
             enPassantSquare = (1 << 6) | (from - 8);
         }
         if (move.promotion != 0) {
-            *bitboards[mySide][0] &= ~toBB;
+            bitboards[mySide][0] &= ~toBB;
             Piece promoted = charToPiece(move.promotion);
-            *bitboards[mySide][promoted-1] |= toBB;
+            bitboards[mySide][promoted-1] |= toBB;
             pieceAt[to] = promoted;
         }
     } else if (movedPiece == KING) {
-        *bitboards[mySide][5] &= ~fromBB;
-        *bitboards[mySide][5] |= toBB;
+        bitboards[mySide][5] &= ~fromBB;
+        bitboards[mySide][5] |= toBB;
         if (mySide == WHITE) whiteKingPos = to;
         else blackKingPos = to;
 
         if (from == e1 || from == e8) {
             castlingRights &= static_cast<uint8_t>(~static_cast<uint8_t>(3 << (2 * (1 - mySide))));
+            uint64_t& rooks = bitboards[mySide][3];
             if (to == g1) {
-                whiteRooks = (whiteRooks & ~bitMasks[h1]) | bitMasks[f1];
+                rooks = (rooks & ~bitMasks[h1]) | bitMasks[f1];
                 pieceAt[h1] = EMPTY;
                 pieceAt[f1] = ROOK;
             } else if (to == c1) {
-                whiteRooks = (whiteRooks & ~bitMasks[a1]) | bitMasks[d1];
+                rooks = (rooks & ~bitMasks[a1]) | bitMasks[d1];
                 pieceAt[a1] = EMPTY;
                 pieceAt[d1] = ROOK;
             } else if (to == g8) {
-                blackRooks = (blackRooks & ~bitMasks[h8]) | bitMasks[f8];
+                rooks = (rooks & ~bitMasks[h8]) | bitMasks[f8];
                 pieceAt[h8] = EMPTY;
                 pieceAt[f8] = ROOK;
             } else if (to == c8) {
-                blackRooks = (blackRooks & ~bitMasks[a8]) | bitMasks[d8];
+                rooks = (rooks & ~bitMasks[a8]) | bitMasks[d8];
                 pieceAt[a8] = EMPTY;
                 pieceAt[d8] = ROOK;
             }
         }
 
     } else {
-        *bitboards[mySide][movedPiece-1] &= ~fromBB;
-        *bitboards[mySide][movedPiece-1] |= toBB;
+        bitboards[mySide][movedPiece-1] &= ~fromBB;
+        bitboards[mySide][movedPiece-1] |= toBB;
     }
 
     castlingRights &= ~(castlingClearTable[from] | castlingClearTable[to]);
 
     if (capturedPiece != EMPTY && !move.isEnPassant) {
-        *bitboards[1-mySide][capturedPiece-1] &= ~toBB;
+        bitboards[1-mySide][capturedPiece-1] &= ~toBB;
         halfmoveClock = 0;
     }
 
@@ -166,111 +100,94 @@ void Board::make_move(Move move) {
     if (!whiteToMove) fullmoveNumber++;
 
     UpdateOccupancy();
-    UpdateAttacks();
+    UpdateAttacks(*this);
 }
 
 void Board::unmake_move() {
-    if (history.empty()) return;
-    MoveState lastState = history.back();
-    history.pop_back();
+    if (ply == 0) return;
+    const MoveState& state = history[--ply];
 
-    whitePawns = lastState.whitePawns;
-    whiteKnights = lastState.whiteKnights;
-    whiteBishops = lastState.whiteBishops;
-    whiteRooks = lastState.whiteRooks;
-    whiteQueens = lastState.whiteQueens;
-    whiteKing = lastState.whiteKing;
+    // Restore game state
+    castlingRights = state.castlingRights;
+    enPassantSquare = state.enPassantSquare;
+    halfmoveClock = state.halfmoveClock;
+    whiteToMove = state.whiteToMove;
+    fullmoveNumber = state.fullmoveNumber;
 
-    blackPawns = lastState.blackPawns;
-    blackKnights = lastState.blackKnights;
-    blackBishops = lastState.blackBishops;
-    blackRooks = lastState.blackRooks;
-    blackQueens = lastState.blackQueens;
-    blackKing = lastState.blackKing;
+    whiteKingPos = state.whiteKingPos;
+    blackKingPos = state.blackKingPos;
 
-    whitePieces = lastState.whitePieces;
-    blackPieces = lastState.blackPieces;
-    allPieces = lastState.allPieces;
+    uint8_t from = state.from;
+    uint8_t to = state.to;
+    uint64_t fromBB = bitMasks[from];
+    uint64_t toBB = bitMasks[to];
 
-    whiteKingPos = lastState.whiteKingPos;
-    blackKingPos = lastState.blackKingPos;
+    Color side = whiteToMove ? WHITE : BLACK;
+    Color opponent = static_cast<Color>(1 - side);
 
-    whiteAttacks = lastState.whiteAttacks;
-    blackAttacks = lastState.blackAttacks;
+    Piece moved = state.movedPiece;
+    Piece captured = state.capturedPiece;
+    Piece promoted = state.promotedPiece;
 
-    whiteToMove = lastState.whiteToMove;
+    // Handle pieceAt[] restoration
+    pieceAt[from] = moved;
+    pieceAt[to] = captured;
 
-    castlingRights = lastState.castlingRights;
-    enPassantSquare = lastState.enPassantSquare;
-
-    halfmoveClock = lastState.halfmoveClock;
-    fullmoveNumber = lastState.fullmoveNumber;
-
-    for (int i = 0; i < 64; i++) {
-        pieceAt[i] = lastState.pieceAt[i];
+    // Handle promotions
+    if (moved == PAWN && promoted != EMPTY) {
+        // Remove promoted piece from bitboard
+        bitboards[side][promoted - 1] &= ~toBB;
+        // Add pawn back
+        bitboards[side][PAWN - 1] |= fromBB;
+    } else {
+        // Undo normal piece movement
+        bitboards[side][moved - 1] &= ~toBB;
+        bitboards[side][moved - 1] |= fromBB;
     }
 
-    zobristKey = lastState.zobristKey;
-    appliedMoves = lastState.appliedMoves;
-
-    bitboards[WHITE][PAWN-1] = &whitePawns;
-    bitboards[WHITE][KNIGHT-1] = &whiteKnights;
-    bitboards[WHITE][BISHOP-1] = &whiteBishops;
-    bitboards[WHITE][ROOK-1] = &whiteRooks;
-    bitboards[WHITE][QUEEN-1] = &whiteQueens;
-    bitboards[WHITE][KING-1] = &whiteKing;
-
-    bitboards[BLACK][PAWN-1] = &blackPawns;
-    bitboards[BLACK][KNIGHT-1] = &blackKnights;
-    bitboards[BLACK][BISHOP-1] = &blackBishops;
-    bitboards[BLACK][ROOK-1] = &blackRooks;
-    bitboards[BLACK][QUEEN-1] = &blackQueens;
-    bitboards[BLACK][KING-1] = &blackKing;
-}
-
-MoveState Board::getSnapshot() const {
-    MoveState snapshot;
-
-    snapshot.whitePawns = whitePawns;
-    snapshot.whiteKnights = whiteKnights;
-    snapshot.whiteBishops = whiteBishops;
-    snapshot.whiteRooks = whiteRooks;
-    snapshot.whiteQueens = whiteQueens;
-    snapshot.whiteKing = whiteKing;
-
-    snapshot.blackPawns = blackPawns;
-    snapshot.blackKnights = blackKnights;
-    snapshot.blackBishops = blackBishops;
-    snapshot.blackRooks = blackRooks;
-    snapshot.blackQueens = blackQueens;
-    snapshot.blackKing = blackKing;
-
-    snapshot.whitePieces = whitePieces;
-    snapshot.blackPieces = blackPieces;
-    snapshot.allPieces = allPieces;
-
-    snapshot.whiteKingPos = whiteKingPos;
-    snapshot.blackKingPos = blackKingPos;
-
-    snapshot.whiteAttacks = whiteAttacks;
-    snapshot.blackAttacks = blackAttacks;
-
-    snapshot.whiteToMove = whiteToMove;
-
-    snapshot.castlingRights = castlingRights;
-    snapshot.enPassantSquare = enPassantSquare;
-
-    snapshot.halfmoveClock = halfmoveClock;
-    snapshot.fullmoveNumber = fullmoveNumber;
-
-    for (int i = 0; i < 64; i++) {
-        snapshot.pieceAt[i] = pieceAt[i];
+    // Handle captures
+    if (captured != EMPTY) {
+        bitboards[opponent][captured - 1] |= toBB;
     }
 
-    snapshot.zobristKey = zobristKey;
-    snapshot.appliedMoves = appliedMoves;
+    // Handle en-passant
+    if (moved == PAWN && state.enPassant) {
+        int capSq = whiteToMove ? to - 8 : to + 8;
+        bitboards[opponent][0] |= bitMasks[capSq];
+        pieceAt[capSq] = PAWN;
+    }
 
-    return snapshot;
+    // Undo castling rook movement
+    if (moved == KING) {
+        if (from == e1 && to == g1) {
+            // White kingside
+            bitboards[WHITE][ROOK - 1] &= ~bitMasks[f1];
+            bitboards[WHITE][ROOK - 1] |= bitMasks[h1];
+            pieceAt[f1] = EMPTY;
+            pieceAt[h1] = ROOK;
+        } else if (from == e1 && to == c1) {
+            // White queenside
+            bitboards[WHITE][ROOK - 1] &= ~bitMasks[d1];
+            bitboards[WHITE][ROOK - 1] |= bitMasks[a1];
+            pieceAt[d1] = EMPTY;
+            pieceAt[a1] = ROOK;
+        } else if (from == e8 && to == g8) {
+            // Black kingside
+            bitboards[BLACK][ROOK - 1] &= ~bitMasks[f8];
+            bitboards[BLACK][ROOK - 1] |= bitMasks[h8];
+            pieceAt[f8] = EMPTY;
+            pieceAt[h8] = ROOK;
+        } else if (from == e8 && to == c8) {
+            // Black queenside
+            bitboards[BLACK][ROOK - 1] &= ~bitMasks[d8];
+            bitboards[BLACK][ROOK - 1] |= bitMasks[a8];
+            pieceAt[d8] = EMPTY;
+            pieceAt[a8] = ROOK;
+        }
+    }
+
+    UpdateOccupancy();   // recompute generalboards[3]
+    UpdateAttacks(*this); // update whiteAttacks/blackAttacks
 }
 
 bool Board::is_king_in_check(bool white) {
@@ -278,12 +195,13 @@ bool Board::is_king_in_check(bool white) {
                 : (whiteAttacks & bitMasks[blackKingPos]) != 0;
 }
 void Board::UpdateOccupancy() {
-    whitePieces = whitePawns | whiteKnights | whiteBishops | whiteRooks | whiteQueens | whiteKing;
-    blackPieces = blackPawns | blackKnights | blackBishops | blackRooks | blackQueens | blackKing;
-    allPieces = whitePieces | blackPieces;
+    generalboards[WHITE] = bitboards[WHITE][0] | bitboards[WHITE][1] | bitboards[WHITE][2] | bitboards[WHITE][3] | bitboards[WHITE][4] | bitboards[WHITE][5];
+    generalboards[BLACK] = bitboards[BLACK][0] | bitboards[BLACK][1] | bitboards[BLACK][2] | bitboards[BLACK][3] | bitboards[BLACK][4] | bitboards[BLACK][5];
 
-    whiteKingPos = static_cast<uint8_t>(__builtin_ctzll(whiteKing));
-    blackKingPos = static_cast<uint8_t>(__builtin_ctzll(blackKing));
+    generalboards[2] = generalboards[WHITE] | generalboards[BLACK];
+
+    whiteKingPos = static_cast<uint8_t>(__builtin_ctzll(bitboards[WHITE][5]));
+    blackKingPos = static_cast<uint8_t>(__builtin_ctzll(bitboards[BLACK][5]));
 }
 bool Board::hasEnPassant() const {
     return (enPassantSquare & (1 << 6)) != 0;

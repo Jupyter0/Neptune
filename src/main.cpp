@@ -1,11 +1,4 @@
-#include <string>
-#include <istream>
-#include <iostream>
-#include <vector>
-#include <sstream>
-#include "board.h"
-#include "boardsetup.h"
-#include "movegen.h"
+#include "main.h"
 
 void uci() {
     std::cout << "id name Neptune\n";
@@ -58,33 +51,6 @@ void position(Board& board, const std::string& input) {
     }
 }
 
-int perft(Board& board, int depth) {
-    int legalChildren = 0;
-    if (depth == 0) return 1;
-    std::vector<Move> legalMoves = GenerateLegalMoves(board);
-    if (depth == 1) return static_cast<int>(legalMoves.size());
-    for (const Move& move :legalMoves) {
-        board.make_move(move);
-        legalChildren += perft(board, depth-1);
-        board.unmake_move();
-    }
-    return legalChildren;
-}
-
-int perft_divide(Board& board, int depth) {
-    int total = 0;
-    if (depth == 0) return 1;
-    std::vector<Move> legalMoves = GenerateLegalMoves(board);
-    for (const Move& move : legalMoves) {
-        board.make_move(move);
-        int nodes = perft(board, depth - 1);
-        std::cout << MoveToUCI(move) << ": " << nodes << std::endl;
-        total += nodes;
-        board.unmake_move();
-    }
-    return total;
-}
-
 int main() {
     std::string line;
     Board board = Board();
@@ -101,8 +67,7 @@ int main() {
         } else if (line.rfind("go", 0) == 0) {
             if (line.rfind("go perft", 0) == 0) {
                 int depth = line.substr(0, 10)[9] - '0';
-                int nodes = perft_divide(board, depth);
-                std::cout << "Nodes searched: " << nodes << std::endl << std::flush;
+                perft_debug(board, depth);
             }
         } else if (line == "stop") {
             //Stop calculating as soon as possible

@@ -1,20 +1,12 @@
 #ifndef BOARD_H
 #define BOARD_H
 
-#include <cstdint>
 #include "common.h"
-#include <string>
 
 class Board {
 public:
-    std::vector<MoveState> history;
-
-    uint64_t whitePawns, whiteKnights, whiteBishops, whiteRooks, whiteQueens, whiteKing;
-    uint64_t blackPawns, blackKnights, blackBishops, blackRooks, blackQueens, blackKing;
-
-    uint64_t whitePieces;
-    uint64_t blackPieces;
-    uint64_t allPieces;
+    MoveState history[256];
+    int ply = 0;
 
     uint8_t whiteKingPos;
     uint8_t blackKingPos;
@@ -22,10 +14,9 @@ public:
     uint64_t whiteAttacks;
     uint64_t blackAttacks;
 
-    uint64_t* bitboards[2][6] = {
-        { &whitePawns, &whiteKnights, &whiteBishops, &whiteRooks, &whiteQueens, &whiteKing },
-        { &blackPawns, &blackKnights, &blackBishops, &blackRooks, &blackQueens, &blackKing }
-    };
+    uint64_t bitboards[2][6]; //Pawn = 0, Knight = 1, Bishop = 2, Rook = 3, Queen = 4, King = 5
+
+    uint64_t generalboards[3];
 
     bool whiteToMove;
 
@@ -41,14 +32,8 @@ public:
 
 
     std::vector<Move> appliedMoves;
-
-    void UpdateAttacks();
-    void AddSlidingAttacks(uint64_t pieces, Piece pieceType, Color color, uint64_t& attacks);
-    uint64_t CalculateSlidingAttacks(uint64_t sq, const int directions[][2], uint64_t all);
-    void AddNonSlidingAttacks(uint64_t pieces, Piece pieceType, Color color, uint64_t& attacks);
     void make_move(Move move);
     void unmake_move();
-    MoveState getSnapshot() const;
     bool is_king_in_check(bool white);
     void UpdateOccupancy();
     bool hasEnPassant() const;

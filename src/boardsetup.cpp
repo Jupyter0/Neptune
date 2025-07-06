@@ -1,8 +1,3 @@
-#include <string>
-#include <sstream>
-#include <vector>
-#include <iostream>
-#include "board.h"
 #include "boardsetup.h"
 
 void ParsePieces(Board& board, std::string piecesField) {
@@ -11,8 +6,7 @@ void ParsePieces(Board& board, std::string piecesField) {
     std::string rank;
     while (getline(ss, rank, '/')) ranks.push_back(rank);
 
-    board.whitePawns = board.whiteKnights = board.whiteBishops = board.whiteRooks = board.whiteQueens = board.whiteKing = 0ULL;
-    board.blackPawns = board.blackKnights = board.blackBishops = board.blackRooks = board.blackQueens = board.blackKing = 0ULL;
+    std::memset(board.bitboards, 0, sizeof(board.bitboards));
 
     for (uint8_t i = 0; i < 8 ; i++) {
         uint8_t file = 0;
@@ -27,19 +21,19 @@ void ParsePieces(Board& board, std::string piecesField) {
             }
             uint8_t squareIndex = static_cast<uint8_t>((7-i)*8 + file); // Board square index: a1 = 0, h8 = 63 (bottom-left to top-right)
             switch (piece) {
-                    case 'P': board.whitePawns     |= bitMasks[squareIndex]; board.pieceAt[squareIndex] = PAWN;   break;
-                    case 'N': board.whiteKnights   |= bitMasks[squareIndex]; board.pieceAt[squareIndex] = KNIGHT; break;
-                    case 'B': board.whiteBishops   |= bitMasks[squareIndex]; board.pieceAt[squareIndex] = BISHOP; break;
-                    case 'R': board.whiteRooks     |= bitMasks[squareIndex]; board.pieceAt[squareIndex] = ROOK;   break;
-                    case 'Q': board.whiteQueens    |= bitMasks[squareIndex]; board.pieceAt[squareIndex] = QUEEN;  break;
-                    case 'K': board.whiteKing      |= bitMasks[squareIndex]; board.pieceAt[squareIndex] = KING;   break;
+                    case 'P': board.bitboards[WHITE][0] |= bitMasks[squareIndex]; board.pieceAt[squareIndex] = PAWN;   break;
+                    case 'N': board.bitboards[WHITE][1] |= bitMasks[squareIndex]; board.pieceAt[squareIndex] = KNIGHT; break;
+                    case 'B': board.bitboards[WHITE][2] |= bitMasks[squareIndex]; board.pieceAt[squareIndex] = BISHOP; break;
+                    case 'R': board.bitboards[WHITE][3] |= bitMasks[squareIndex]; board.pieceAt[squareIndex] = ROOK;   break;
+                    case 'Q': board.bitboards[WHITE][4] |= bitMasks[squareIndex]; board.pieceAt[squareIndex] = QUEEN;  break;
+                    case 'K': board.bitboards[WHITE][5] |= bitMasks[squareIndex]; board.pieceAt[squareIndex] = KING;   break;
 
-                    case 'p': board.blackPawns     |= bitMasks[squareIndex]; board.pieceAt[squareIndex] = PAWN;   break;
-                    case 'n': board.blackKnights   |= bitMasks[squareIndex]; board.pieceAt[squareIndex] = KNIGHT; break;
-                    case 'b': board.blackBishops   |= bitMasks[squareIndex]; board.pieceAt[squareIndex] = BISHOP; break;
-                    case 'r': board.blackRooks     |= bitMasks[squareIndex]; board.pieceAt[squareIndex] = ROOK;   break;
-                    case 'q': board.blackQueens    |= bitMasks[squareIndex]; board.pieceAt[squareIndex] = QUEEN;  break;
-                    case 'k': board.blackKing      |= bitMasks[squareIndex]; board.pieceAt[squareIndex] = KING;   break;
+                    case 'p': board.bitboards[BLACK][0] |= bitMasks[squareIndex]; board.pieceAt[squareIndex] = PAWN;   break;
+                    case 'n': board.bitboards[BLACK][1] |= bitMasks[squareIndex]; board.pieceAt[squareIndex] = KNIGHT; break;
+                    case 'b': board.bitboards[BLACK][2] |= bitMasks[squareIndex]; board.pieceAt[squareIndex] = BISHOP; break;
+                    case 'r': board.bitboards[BLACK][3] |= bitMasks[squareIndex]; board.pieceAt[squareIndex] = ROOK;   break;
+                    case 'q': board.bitboards[BLACK][4] |= bitMasks[squareIndex]; board.pieceAt[squareIndex] = QUEEN;  break;
+                    case 'k': board.bitboards[BLACK][5] |= bitMasks[squareIndex]; board.pieceAt[squareIndex] = KING;   break;
                     default: std::cerr << "[WARNING]: Unknown piece character '" << piece << "'\n"; break;
             }
             file++;
@@ -79,7 +73,7 @@ void setBB(Board& board, const std::string& fen) {
     }
 
     constexpr uint8_t epFlag = 1 << 6;
-    board.enPassantSquare = 0ULL;
+    board.enPassantSquare = 0;
     if (fields[3] != "-") {
         int file = fields[3][0] - 'a';
         int rank = fields[3][1] - '1';
@@ -94,5 +88,5 @@ void setBB(Board& board, const std::string& fen) {
     board.fullmoveNumber = std::stoi(fields[5]);
 
     board.UpdateOccupancy();
-    board.UpdateAttacks();
+    UpdateAttacks(board);
 }

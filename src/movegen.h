@@ -1,7 +1,6 @@
 #ifndef MOVEGEN_H
 #define MOVEGEN_H
 
-#include <vector>
 #include "common.h"
 #include "board.h"
 
