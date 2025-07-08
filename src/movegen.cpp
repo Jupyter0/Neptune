@@ -19,46 +19,84 @@ void GenerateCastlingMoves(uint8_t castlingRights, uint64_t all, std::vector<Mov
     }
 }
 
-void GenerateSlidingMoves(uint64_t pieces, const int directions[][2], int dirCount, uint64_t own, uint64_t enemy, std::vector<Move>& moves) {
+void GenerateRookMoves(uint64_t pieces, Board& board, Color color, std::vector<Move>& moves) {
+    const uint64_t all = board.generalboards[2];
+    const uint64_t friendly = board.generalboards[color];
     while (pieces) {
         uint8_t sq = static_cast<uint8_t>(__builtin_ctzll(pieces));
-        pieces &= pieces - 1;
+        pieces &= pieces -1;
 
-        uint8_t rank = sq >> 3;
-        uint8_t file = sq & 7;
-
-        for (int d = 0; d < dirCount; d++) {
-            int r = rank + directions[d][0];
-            int f = file + directions[d][1];
-            while (r >= 0 && r < 8 && f >= 0 && f < 8) {
-                uint8_t target = static_cast<uint8_t>(r * 8 + f);
-                uint64_t targetBB = bitMasks[target];
-                if (own & targetBB) break;
-                moves.push_back(Move(sq, target));
-                if (enemy & targetBB) break;
-                r += directions[d][0];
-                f += directions[d][1];
-            }
-        }
-    }
-}
-
-void GenerateNonSlidingMoves(uint64_t pieces, const uint64_t attackTable[64], uint64_t own, std::vector<Move>& moves) {
-    while (pieces) {
-        uint8_t sq = static_cast<uint8_t>(__builtin_ctzll(pieces));
-        pieces &= pieces - 1;
-
-        uint64_t attacks = attackTable[sq];
-        attacks &= ~own;
+        uint64_t attacks = ROOK_ATTACKS(sq, all) & ~friendly;
 
         while (attacks) {
-            uint8_t target = static_cast<uint8_t>(__builtin_ctzll(attacks));
+            uint8_t to = static_cast<uint8_t>(__builtin_ctzll(attacks));
             attacks &= attacks - 1;
-            moves.push_back(Move(sq, target));
+            moves.push_back(Move(sq, to));
         }
     }
 }
 
+void GenerateBishopMoves(uint64_t pieces, Board& board, Color color, std::vector<Move>& moves) {
+    const uint64_t all = board.generalboards[2];
+    const uint64_t friendly = board.generalboards[color];
+    while (pieces) {
+        uint8_t sq = static_cast<uint8_t>(__builtin_ctzll(pieces));
+        pieces &= pieces -1;
+
+        uint64_t attacks = BISHOP_ATTACKS(sq, all) & ~friendly;
+
+        while (attacks) {
+            uint8_t to = static_cast<uint8_t>(__builtin_ctzll(attacks));
+            attacks &= attacks - 1;
+            moves.push_back(Move(sq, to));
+        }
+    }
+}
+
+void GenerateSlidingMoves(Board& board, Color color, std::vector<Move>& moves) {
+    GenerateRookMoves(board.bitboards[color][3], board, color, moves);
+    GenerateBishopMoves(board.bitboards[color][2], board, color, moves);
+
+    GenerateRookMoves(board.bitboards[color][4], board, color, moves);
+    GenerateBishopMoves(board.bitboards[color][4], board, color, moves);
+}
+
+void GenerateKnightMoves(uint64_t pieces, Board& board, Color color, std::vector<Move>& moves) {
+    const uint64_t friendly = board.generalboards[color];
+    while(pieces) {
+        uint8_t sq = static_cast<uint8_t>(__builtin_ctzll(pieces));
+        pieces &= pieces - 1;
+
+        uint64_t attacks = attacksBB[KNIGHT-1][color][sq] & ~friendly;
+
+        while (attacks) {
+            uint8_t to = static_cast<uint8_t>(__builtin_ctzll(attacks));
+            attacks &= attacks - 1;
+            moves.push_back(Move(sq, to));
+        }
+    }
+}
+
+void GenerateKingMoves(uint64_t pieces, Board& board, Color color, std::vector<Move>& moves) {
+    const uint64_t friendly = board.generalboards[color];
+    while(pieces) {
+        uint8_t sq = static_cast<uint8_t>(__builtin_ctzll(pieces));
+        pieces &= pieces - 1;
+
+        uint64_t attacks = attacksBB[KING-1][color][sq] & ~friendly;
+
+        while (attacks) {
+            uint8_t to = static_cast<uint8_t>(__builtin_ctzll(attacks));
+            attacks &= attacks - 1;
+            moves.push_back(Move(sq, to));
+        }
+    }
+}
+
+void GenerateNonSlidingMoves(Board& board, Color color, std::vector<Move>& moves) {
+    GenerateKnightMoves(board.bitboards[color][1], board, color, moves);
+    GenerateKingMoves(board.bitboards[color][5], board, color, moves);
+}
 
 void GeneratePawnMoves(uint64_t pawns, uint64_t enemy, uint64_t all, std::vector<Move>& moves, Color color, uint8_t epSquare = 0) {
     int forward = (color == WHITE) ? 8 : -8;
@@ -124,13 +162,8 @@ std::vector<Move> GeneratePseudoLegalMoves(Board& board, bool isWhiteToMove) {
     uint8_t epTarget = board.hasEnPassant() ? board.getEnPassantTarget() : 0;
     Color color = static_cast<Color>(isWhiteToMove ? WHITE : BLACK);
 
-    GenerateSlidingMoves(board.bitboards[color][BISHOP-1], dirs[BISHOP-1], 4, board.generalboards[color], board.generalboards[1-color], moves);
-    GenerateSlidingMoves(board.bitboards[color][ROOK-1], dirs[ROOK-1], 4, board.generalboards[color], board.generalboards[1-color], moves);
-    GenerateSlidingMoves(board.bitboards[color][QUEEN-1], dirs[QUEEN-1], 8, board.generalboards[color], board.generalboards[1-color], moves);
-
-    GenerateNonSlidingMoves(board.bitboards[color][KNIGHT-1], attacksBB[KNIGHT-1][color], board.generalboards[color], moves);
-    GenerateNonSlidingMoves(board.bitboards[color][KING-1], attacksBB[KING-1][color], board.generalboards[color], moves);
-    
+    GenerateSlidingMoves(board, color, moves);
+    GenerateNonSlidingMoves(board, color, moves);
     GeneratePawnMoves(board.bitboards[color][PAWN-1], board.generalboards[1-color], board.generalboards[2], moves, color, epTarget);
 
     if (!board.is_king_in_check(isWhiteToMove)) GenerateCastlingMoves(board.castlingRights, board.generalboards[2], moves, color, board.whiteAttacks, board.blackAttacks);
