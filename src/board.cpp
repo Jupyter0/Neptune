@@ -28,7 +28,7 @@ void Board::make_move(Move move) {
 
     history[ply++] = snapshot;
     
-    halfmoveClock++;
+    ++halfmoveClock;
     enPassantSquare = 0;
     pieceAt[to] = movedPiece;
 
@@ -97,7 +97,7 @@ void Board::make_move(Move move) {
     pieceAt[from] = EMPTY;
 
     whiteToMove = !whiteToMove;
-    if (!whiteToMove) fullmoveNumber++;
+    if (!whiteToMove) ++fullmoveNumber;
 
     UpdateOccupancy();
     UpdateAttacks(*this);

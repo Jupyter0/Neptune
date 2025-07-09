@@ -47,13 +47,13 @@ void GeneratePawnAttacks(uint64_t pieces, Color color, uint64_t& attacks) {
     }
 }
 
-void AddNonSlidingAttacks(Board board, Color color, uint64_t& attacks) {
+void AddNonSlidingAttacks(Board& board, Color color, uint64_t& attacks) {
     GenerateKnightAttacks(board.bitboards[color][KNIGHT-1], color, attacks);
     GenerateKingAttacks(board.bitboards[color][KING-1], color, attacks);
     GeneratePawnAttacks(board.bitboards[color][PAWN-1], color, attacks);
 }
 
-void AddSlidingAttacks(Board board, Color color, uint64_t& attacks) {
+void AddSlidingAttacks(Board& board, Color color, uint64_t& attacks) {
     GenerateRookAttacks(board.bitboards[color][ROOK-1], board, attacks);
     GenerateBishopAttacks(board.bitboards[color][BISHOP-1], board, attacks);
 
