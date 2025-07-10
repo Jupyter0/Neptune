@@ -2,13 +2,8 @@
 #define MAIN_H
 
 #include "common.h"
-#include "board.h"
-#include "boardsetup.h"
-#include "perft.h"
-#include "magicbitboards.h"
+#include "uci.h"
 
-void uci();
-void position(Board& board, const std::string& input);
 int main();
 
 #endif

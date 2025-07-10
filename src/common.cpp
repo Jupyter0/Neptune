@@ -240,3 +240,5 @@ std::array<Piece, 128> promotionCharToPiece = [] {
     table['n'] = KNIGHT;
     return table;
 }();
+
+uint numThreads = 1;

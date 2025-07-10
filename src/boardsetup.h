@@ -7,5 +7,6 @@
 
 void ParsePieces(Board& board, std::string piecesField);
 void setBB(Board& board, const std::string& fen);
+void position(Board& board, const std::string& input);
 
 #endif

@@ -1,81 +1,11 @@
 #include "main.h"
 
-void uci() {
-    std::cout << "id name Neptune\n";
-    std::cout << "id author Jupyter\n";
-    std::cout << "uciok\n" << std::flush;
-}
-
-void position(Board& board, const std::string& input) {
-    bool resetBoard = false;
-    std::string fenString;
-    std::vector<std::string> movesTokens;
-
-    if (input.find("position startpos") == 0) {
-        resetBoard = true;
-        setBB(board, "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");  // assume startingFEN is defined with standard start position FEN
-    }
-    else if (input.find("position fen ") == 0) {
-        resetBoard = true;
-        size_t fenStart = input.find("fen ") + 4;
-        size_t movesPos = input.find(" moves ", fenStart);
-        if (movesPos == std::string::npos) {
-            fenString = input.substr(fenStart);
-        } else {
-            fenString = input.substr(fenStart, movesPos - fenStart);
-        }
-        setBB(board, fenString);
-    }
-
-    size_t movesIndex = input.find(" moves ");
-    if (movesIndex != std::string::npos) {
-        std::string movesPart = input.substr(movesIndex + 7);
-        movesTokens = split(movesPart);
-    }
-
-    if (resetBoard) {
-        board.appliedMoves.clear();
-    }
-
-    size_t firstNewMove = 0;
-    while (firstNewMove < board.appliedMoves.size() && firstNewMove < movesTokens.size()) {
-        std::string appliedMoveUCI = MoveToUCI(board.appliedMoves[firstNewMove]);
-        if (appliedMoveUCI != movesTokens[firstNewMove]) break;
-        firstNewMove++;
-    }
-
-    for (size_t i = firstNewMove; i < movesTokens.size(); ++i) {
-        Move m = parseUCIMove(movesTokens[i]);
-        board.make_move(m);
-        board.appliedMoves.push_back(m);
-    }
-}
-
 int main() {
     std::string line;
     InitAttackTables();
     std::cout << "Neptune 1.0 by Jupyter" << std::endl << std::flush;
     Board board = Board();
     while (getline(std::cin, line)) {
-        if (line == "uci") {
-            uci();
-        } else if (line == "isready") std::cout << "readyok\n" << std::flush;
-        else if (line == "ucinewgame") {
-            //Sent to indicate a new game is starting
-            //Reset internal state if needed
-            //No response required
-        } else if (line.rfind("position", 0) == 0) {
-            position(board, line);
-        } else if (line.rfind("go", 0) == 0) {
-            if (line.rfind("go perft", 0) == 0) {
-                int depth = line.substr(0, 10)[9] - '0';
-                perft_debug(board, depth);
-            }
-        } else if (line == "stop") {
-            //Stop calculating as soon as possible
-            //Must respond with bestmove of the best move found so far
-        } else if (line == "quit") {
-            //Exit the engine
-        }
+        UCI(line, board);
     }
 }

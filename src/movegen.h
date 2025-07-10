@@ -5,6 +5,7 @@
 #include "board.h"
 #include "magicbitboards.h"
 
-std::vector<Move> GenerateLegalMoves(Board& board);
+int GenerateLegalMoves(Board& board, Move* moves);
+int GeneratePseudoLegalMoves(Board& board, Move* moves);
 
 #endif

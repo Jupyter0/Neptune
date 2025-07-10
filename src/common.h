@@ -9,6 +9,11 @@
 #include <iostream>
 #include <chrono>
 #include <cstring>
+#include <thread>
+#include <atomic>
+#include <mutex>
+
+extern uint numThreads;
 
 #define ROOK_ATTACKS(sq, occ) (rookAttackTable[sq][((occ & rookBlockerMask[sq]) * rookMagic[sq]) >> rookShift[sq]])
 #define BISHOP_ATTACKS(sq, occ) (bishopAttackTable[sq][((occ & bishopBlockerMask[sq]) * bishopMagic[sq]) >> bishopShift[sq]])
@@ -57,6 +62,7 @@ struct Move {
     bool isEnPassant;
 
     Move(uint8_t From, uint8_t To, char Promotion = 0, bool EP = false) : from(From), to(To), promotion(Promotion), isEnPassant(EP) {}
+    Move() : from(0), to(0) {}
 };
 
 /**
