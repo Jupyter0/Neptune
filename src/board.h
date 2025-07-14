@@ -3,13 +3,14 @@
 
 #include "common.h"
 
+using namespace NeptuneInternals;
+
 class Board {
 public:
     MoveState history[256];
     int ply = 0;
 
-    uint8_t whiteKingPos;
-    uint8_t blackKingPos;
+    uint8_t kings[2];
 
     uint64_t whiteAttacks;
     uint64_t blackAttacks;
@@ -34,9 +35,10 @@ public:
     std::vector<Move> appliedMoves;
     void make_move(Move move);
     void unmake_move();
-    bool is_king_in_check(bool white);
     void UpdateOccupancy();
     bool hasEnPassant() const;
+    bool isKingInCheck(bool white);
+    bool isSquareAttacked(uint8_t square, Color attacker);
     uint8_t getEnPassantTarget() const;
 };
 

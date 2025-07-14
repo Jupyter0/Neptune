@@ -1,5 +1,7 @@
 #include "perft.h"
 
+using namespace NeptuneInternals;
+
 uint64_t perft(Board& board, int depth) {
     uint64_t legalChildren = 0;
     if (depth == 0) return 1;
@@ -8,7 +10,8 @@ uint64_t perft(Board& board, int depth) {
     for (int i = 0; i < pseudoMoveCount; ++i) {
         Move move = moves[i];
         board.make_move(move);
-        if (board.is_king_in_check(!board.whiteToMove)) { board.unmake_move(); continue; }
+        Color us = board.whiteToMove ? BLACK : WHITE;
+        if (board.isSquareAttacked(board.kings[us], static_cast<Color>(1-us))) { board.unmake_move(); continue; }
         legalChildren += perft(board, depth-1);
         board.unmake_move();
     }
@@ -31,7 +34,8 @@ uint64_t perft_divide(Board& board, int depth) {
             const Move& move = moves[i];
             Board copy = board;
             copy.make_move(move);
-            if (copy.is_king_in_check(!copy.whiteToMove)) continue;
+            Color us = board.whiteToMove ? BLACK : WHITE;
+            if (board.isSquareAttacked(board.kings[us], static_cast<Color>(1-us))) continue;
 
             uint64_t nodes = perft(copy, depth - 1);
             totalNodes.fetch_add(nodes, std::memory_order_relaxed);

@@ -5,6 +5,8 @@
 #include "board.h"
 #include "magicbitboards.h"
 
+using namespace NeptuneInternals;
+
 int GenerateLegalMoves(Board& board, Move* moves);
 int GeneratePseudoLegalMoves(Board& board, Move* moves);
 

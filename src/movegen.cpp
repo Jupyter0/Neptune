@@ -1,6 +1,8 @@
 #include "movegen.h"
 #include "board.h"
 
+using namespace NeptuneInternals;
+
 void GenerateCastlingMoves(uint8_t castlingRights, uint64_t all, Move* moves, Color color, uint64_t whiteAttacks, uint64_t blackAttacks, int& count) {
     if (color == WHITE) {
         if (((castlingRights & 0b1000) != 0) && ((all & castlingBB[0]) == 0) && ((blackAttacks & bitMasks[f1]) == 0)) {
@@ -165,7 +167,8 @@ int GeneratePseudoLegalMoves(Board& board, Move* moves /*Should be empty!*/) {
     GenerateNonSlidingMoves(board, color, moves, count);
     GeneratePawnMoves(board.bitboards[color][PAWN-1], board.generalboards[1-color], board.generalboards[2], moves, color, count, epTarget);
 
-    if (!board.is_king_in_check(board.whiteToMove)) GenerateCastlingMoves(board.castlingRights, board.generalboards[2], moves, color, board.whiteAttacks, board.blackAttacks, count);
+    if (!board.isKingInCheck(board.whiteToMove)) 
+        GenerateCastlingMoves(board.castlingRights, board.generalboards[2], moves, color, board.whiteAttacks, board.blackAttacks, count);
 
     return count;
 };
@@ -177,8 +180,9 @@ int GenerateLegalMoves(Board& board, Move* moves /*Should be empty!*/) {
 
     for (int i = 0; i < pseudoMoveCount; ++i) {
         Move& move = pseudoMoves[i];
+        Color us = board.whiteToMove ? WHITE : BLACK;
         board.make_move(move);
-        if (!board.is_king_in_check(!board.whiteToMove)) { // check if own king is not in check
+        if (!board.isSquareAttacked(board.kings[us], static_cast<Color>(!us))) { // check if own king is not in check
             moves[count++] = move;
         }
         board.unmake_move();

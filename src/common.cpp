@@ -1,5 +1,7 @@
 #include "common.h"
 
+using namespace NeptuneInternals;
+
 std::string indexToSquare(uint8_t index) {
     uint8_t file = index & 7;  // 0 to 7
     uint8_t rank = index >> 3;  // 0 to 7
@@ -8,19 +10,6 @@ std::string indexToSquare(uint8_t index) {
     char rankChar = static_cast<char>('1' + rank);       // '1' to '8'
 
     return std::string() + fileChar + rankChar;
-}
-
-Piece charToPiece(char pieceChar) {
-    pieceChar = static_cast<char>(tolower(pieceChar));
-    switch (pieceChar) {
-        case 'p': return PAWN;
-        case 'n': return KNIGHT;
-        case 'b': return BISHOP;
-        case 'r': return ROOK;
-        case 'q': return QUEEN;
-        case 'k': return KING;
-        default: return EMPTY;
-    }
 }
 
 uint8_t squareToIndex(std::string s) {
@@ -231,14 +220,5 @@ uint64_t rank5 = 0x000000FF00000000ULL;
 uint64_t rank6 = 0x0000FF0000000000ULL;
 uint64_t rank7 = 0x00FF000000000000ULL;
 uint64_t rank8 = 0xFF00000000000000ULL;
-
-std::array<Piece, 128> promotionCharToPiece = [] {
-    std::array<Piece, 128> table{};
-    table['q'] = QUEEN;
-    table['r'] = ROOK;
-    table['b'] = BISHOP;
-    table['n'] = KNIGHT;
-    return table;
-}();
 
 uint numThreads = 1;

@@ -1,5 +1,7 @@
 #include "attackgen.h"
 
+using namespace NeptuneInternals;
+
 void GenerateRookAttacks(uint64_t pieces, Board& board, uint64_t& attacks) {
     const uint64_t all = board.generalboards[2];
     while (pieces) {

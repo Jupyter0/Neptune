@@ -1,5 +1,7 @@
 #include "boardsetup.h"
 
+using namespace NeptuneInternals;
+
 void position(Board& board, const std::string& input) {
     bool resetBoard = false;
     std::string fenString;

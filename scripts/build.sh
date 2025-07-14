@@ -1,4 +1,4 @@
-g++ -std=c++17 -O2 -g \
+g++ -std=c++17 -O3 -g \
     -Wall -Wextra -Werror -pedantic \
     -Wshadow -Wconversion -Wsign-conversion \
     -fsanitize=undefined,address \

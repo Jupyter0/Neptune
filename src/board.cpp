@@ -1,6 +1,11 @@
 #include "board.h"
 #include "attackgen.h"
 
+#include <cassert>
+#include <stdio.h>
+
+using namespace NeptuneInternals;
+
 void Board::make_move(Move move) {
     uint8_t from = move.from;
     uint8_t to = move.to;
@@ -9,6 +14,7 @@ void Board::make_move(Move move) {
     uint64_t toBB = bitMasks[to];
     Piece movedPiece = pieceAt[from];
     Piece capturedPiece = pieceAt[to];
+    int forwards = isWhite ? 8 : -8;
     
     MoveState snapshot;
     snapshot.castlingRights = castlingRights;
@@ -21,10 +27,10 @@ void Board::make_move(Move move) {
 
     snapshot.capturedPiece = capturedPiece;
     snapshot.movedPiece = movedPiece;
-    snapshot.promotedPiece = charToPiece(move.promotion);
+    snapshot.promotedPiece = charToPiece[static_cast<u_char>(move.promotion)];
     snapshot.enPassant = move.isEnPassant;
-    snapshot.whiteKingPos = whiteKingPos;
-    snapshot.blackKingPos = blackKingPos;
+    snapshot.whiteKingPos = kings[WHITE];
+    snapshot.blackKingPos = kings[BLACK];
 
     history[ply++] = snapshot;
     
@@ -34,34 +40,13 @@ void Board::make_move(Move move) {
 
     Color mySide = isWhite ? WHITE : BLACK;
 
-    if (movedPiece == PAWN) {
-        bitboards[mySide][0] &= ~fromBB;
-        bitboards[mySide][0] |= toBB;
-        halfmoveClock = 0;
-        if (move.isEnPassant) {
-            int capSq = isWhite ? to - 8 : to + 8;
-            bitboards[1-mySide][0] &= ~bitMasks[capSq];
-            pieceAt[capSq] = EMPTY;
-        }
-        if (isWhite && (fromBB & rank2) && (toBB & rank4)) {
-            enPassantSquare = (1 << 6) | (from + 8);
-        } else if (!isWhite && (fromBB & rank7) && (toBB & rank5)) {
-            enPassantSquare = (1 << 6) | (from - 8);
-        }
-        if (move.promotion != 0) {
-            bitboards[mySide][0] &= ~toBB;
-            Piece promoted = charToPiece(move.promotion);
-            bitboards[mySide][promoted-1] |= toBB;
-            pieceAt[to] = promoted;
-        }
-    } else if (movedPiece == KING) {
-        bitboards[mySide][5] &= ~fromBB;
-        bitboards[mySide][5] |= toBB;
-        if (mySide == WHITE) whiteKingPos = to;
-        else blackKingPos = to;
+    bitboards[mySide][movedPiece-1] &= ~fromBB;
+    bitboards[mySide][movedPiece-1] |= toBB;
 
+    if (movedPiece == KING) {
+        kings[mySide] = to;
         if (from == e1 || from == e8) {
-            castlingRights &= static_cast<uint8_t>(~static_cast<uint8_t>(3 << (2 * (1 - mySide))));
+            castlingRights &= static_cast<uint8_t>(~static_cast<uint8_t>(3 << (2 * (1 - mySide)))); // Clear castling rights
             uint64_t& rooks = bitboards[mySide][3];
             if (to == g1) {
                 rooks = (rooks & ~bitMasks[h1]) | bitMasks[f1];
@@ -81,13 +66,25 @@ void Board::make_move(Move move) {
                 pieceAt[d8] = ROOK;
             }
         }
-
-    } else {
-        bitboards[mySide][movedPiece-1] &= ~fromBB;
-        bitboards[mySide][movedPiece-1] |= toBB;
     }
 
     castlingRights &= ~(castlingClearTable[from] | castlingClearTable[to]);
+
+    // If its not a double push, this will evaluate to 0
+    bool isDouble = std::abs(to - from) == 16;
+    enPassantSquare = static_cast<uint8_t>(((1 << 6) | static_cast<uint8_t>(from + forwards)) * isDouble * (movedPiece == PAWN)); 
+
+    if (move.isEnPassant) {
+        int capSq = to - forwards;
+        bitboards[1-mySide][0] &= ~bitMasks[capSq];
+        pieceAt[capSq] = EMPTY;
+    } else if (move.promotion != 0) {
+        bitboards[mySide][0] &= ~toBB;
+        Piece promoted = NeptuneInternals::charToPiece[static_cast<u_char>(move.promotion)];
+        bitboards[mySide][promoted-1] |= toBB;
+        pieceAt[to] = promoted;
+    }
+
 
     if (capturedPiece != EMPTY && !move.isEnPassant) {
         bitboards[1-mySide][capturedPiece-1] &= ~toBB;
@@ -97,10 +94,9 @@ void Board::make_move(Move move) {
     pieceAt[from] = EMPTY;
 
     whiteToMove = !whiteToMove;
-    if (!whiteToMove) ++fullmoveNumber;
+    fullmoveNumber += !whiteToMove;
 
     UpdateOccupancy();
-    UpdateAttacks(*this);
 }
 
 void Board::unmake_move() {
@@ -114,8 +110,8 @@ void Board::unmake_move() {
     whiteToMove = state.whiteToMove;
     fullmoveNumber = state.fullmoveNumber;
 
-    whiteKingPos = state.whiteKingPos;
-    blackKingPos = state.blackKingPos;
+    kings[WHITE] = state.whiteKingPos;
+    kings[BLACK] = state.blackKingPos;
 
     uint8_t from = state.from;
     uint8_t to = state.to;
@@ -187,12 +183,6 @@ void Board::unmake_move() {
     }
 
     UpdateOccupancy();   // recompute generalboards[3]
-    UpdateAttacks(*this); // update whiteAttacks/blackAttacks
-}
-
-bool Board::is_king_in_check(bool white) {
-    return white ? (blackAttacks & bitMasks[whiteKingPos]) != 0
-                : (whiteAttacks & bitMasks[blackKingPos]) != 0;
 }
 void Board::UpdateOccupancy() {
     generalboards[WHITE] = bitboards[WHITE][0] | bitboards[WHITE][1] | bitboards[WHITE][2] | bitboards[WHITE][3] | bitboards[WHITE][4] | bitboards[WHITE][5];
@@ -200,11 +190,30 @@ void Board::UpdateOccupancy() {
 
     generalboards[2] = generalboards[WHITE] | generalboards[BLACK];
 
-    whiteKingPos = static_cast<uint8_t>(__builtin_ctzll(bitboards[WHITE][5]));
-    blackKingPos = static_cast<uint8_t>(__builtin_ctzll(bitboards[BLACK][5]));
+    kings[WHITE] = static_cast<uint8_t>(__builtin_ctzll(bitboards[WHITE][5]));
+    kings[BLACK] = static_cast<uint8_t>(__builtin_ctzll(bitboards[BLACK][5]));
 }
 bool Board::hasEnPassant() const {
     return (enPassantSquare & (1 << 6)) != 0;
+}
+bool Board::isKingInCheck(bool white) {
+    return white ? (blackAttacks & bitMasks[kings[WHITE]]) != 0
+                : (whiteAttacks & bitMasks[kings[BLACK]]) != 0;
+}
+bool Board::isSquareAttacked(uint8_t square, Color attacker) {
+    if (attacksBB[KNIGHT-1][attacker][square] & bitboards[attacker][KNIGHT-1]) return true;
+    if (attacksBB[KING-1][attacker][square] & bitboards[attacker][KING-1]) return true;
+    if (attacksBB[PAWN-1][1-attacker][square] & bitboards[attacker][PAWN-1]) return true;
+
+    const uint64_t all = generalboards[2];
+
+    uint64_t rookLike = ROOK_ATTACKS(square, all);
+    if (rookLike & (bitboards[attacker][ROOK-1] | bitboards[attacker][QUEEN-1])) return true;
+
+    uint64_t bishopLike = BISHOP_ATTACKS(square, all);
+    if (bishopLike & (bitboards[attacker][BISHOP-1] | bitboards[attacker][QUEEN-1])) return true;
+
+    return false;
 }
 uint8_t Board::getEnPassantTarget() const {
     // Returns 0–63 square index if en passant is available; undefined otherwise
