@@ -3,10 +3,9 @@
 
 #include "common.h"
 #include "board.h"
-#include "attackgen.h"
 
 void ParsePieces(Board& board, std::string piecesField);
-void setBB(Board& board, const std::string& fen);
-void position(Board& board, const std::string& input);
+void SetBB(Board& board, const std::string& fen);
+void Position(Board& board, const std::string& input);
 
 #endif

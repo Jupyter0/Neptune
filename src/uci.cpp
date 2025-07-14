@@ -12,11 +12,11 @@ void UCI(std::string line, Board& board) {
         //Reset internal state if needed
         //No response required
     } else if (line.rfind("position", 0) == 0) {
-        position(board, line);
+        Position(board, line);
     } else if (line.rfind("go", 0) == 0) {
         if (line.rfind("go perft", 0) == 0) {
             int depth = line.substr(0, 10)[9] - '0';
-            perft_debug(board, depth);
+            PerftDebug(board, depth);
         }
     } else if (line.rfind("setoption", 0) == 0) {
         std::istringstream iss(line);

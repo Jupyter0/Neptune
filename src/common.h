@@ -110,11 +110,11 @@ namespace NeptuneInternals
     }();
 }
 
-std::string indexToSquare(uint8_t index);
+std::string IndexToFileRank(uint8_t index);
 
-NeptuneInternals::Move parseUCIMove(const std::string& uci);
+NeptuneInternals::Move ParseUCIMove(const std::string& uci);
 
-std::vector<std::string> split(const std::string& s);
+std::vector<std::string> SplitFen(const std::string& s);
 
 std::string MoveToUCI(const NeptuneInternals::Move& move);
 

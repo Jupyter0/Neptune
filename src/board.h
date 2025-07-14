@@ -2,6 +2,7 @@
 #define BOARD_H
 
 #include "common.h"
+#include "magicbitboards.h"
 
 using namespace NeptuneInternals;
 
@@ -33,8 +34,8 @@ public:
 
 
     std::vector<Move> appliedMoves;
-    void make_move(Move move);
-    void unmake_move();
+    void MakeMove(Move move);
+    void UnmakeMove();
     void UpdateOccupancy();
     bool hasEnPassant() const;
     bool isKingInCheck(bool white);

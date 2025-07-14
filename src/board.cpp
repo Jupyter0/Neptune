@@ -1,12 +1,8 @@
 #include "board.h"
-#include "attackgen.h"
-
-#include <cassert>
-#include <stdio.h>
 
 using namespace NeptuneInternals;
 
-void Board::make_move(Move move) {
+void Board::MakeMove(Move move) {
     uint8_t from = move.from;
     uint8_t to = move.to;
     bool isWhite = whiteToMove;
@@ -99,7 +95,7 @@ void Board::make_move(Move move) {
     UpdateOccupancy();
 }
 
-void Board::unmake_move() {
+void Board::UnmakeMove() {
     if (ply == 0) return;
     const MoveState& state = history[--ply];
 

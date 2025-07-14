@@ -181,11 +181,11 @@ int GenerateLegalMoves(Board& board, Move* moves /*Should be empty!*/) {
     for (int i = 0; i < pseudoMoveCount; ++i) {
         Move& move = pseudoMoves[i];
         Color us = board.whiteToMove ? WHITE : BLACK;
-        board.make_move(move);
+        board.MakeMove(move);
         if (!board.isSquareAttacked(board.kings[us], static_cast<Color>(!us))) { // check if own king is not in check
             moves[count++] = move;
         }
-        board.unmake_move();
+        board.UnmakeMove();
     }
 
     return count;

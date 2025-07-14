@@ -2,14 +2,14 @@
 
 using namespace NeptuneInternals;
 
-void position(Board& board, const std::string& input) {
+void Position(Board& board, const std::string& input) {
     bool resetBoard = false;
     std::string fenString;
     std::vector<std::string> movesTokens;
 
     if (input.find("position startpos") == 0) {
         resetBoard = true;
-        setBB(board, "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");  // assume startingFEN is defined with standard start position FEN
+        SetBB(board, "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");  // assume startingFEN is defined with standard start position FEN
     }
     else if (input.find("position fen ") == 0) {
         resetBoard = true;
@@ -20,13 +20,13 @@ void position(Board& board, const std::string& input) {
         } else {
             fenString = input.substr(fenStart, movesPos - fenStart);
         }
-        setBB(board, fenString);
+        SetBB(board, fenString);
     }
 
     size_t movesIndex = input.find(" moves ");
     if (movesIndex != std::string::npos) {
         std::string movesPart = input.substr(movesIndex + 7);
-        movesTokens = split(movesPart);
+        movesTokens = SplitFen(movesPart);
     }
 
     if (resetBoard) {
@@ -41,8 +41,8 @@ void position(Board& board, const std::string& input) {
     }
 
     for (size_t i = firstNewMove; i < movesTokens.size(); ++i) {
-        Move m = parseUCIMove(movesTokens[i]);
-        board.make_move(m);
+        Move m = ParseUCIMove(movesTokens[i]);
+        board.MakeMove(m);
         board.appliedMoves.push_back(m);
     }
 }
@@ -88,7 +88,7 @@ void ParsePieces(Board& board, std::string piecesField) {
     }
 }
 
-void setBB(Board& board, const std::string& fen) {
+void SetBB(Board& board, const std::string& fen) {
     if (fen.length() == 0) return;
     std::istringstream fss(fen);
     std::string field;
@@ -135,5 +135,4 @@ void setBB(Board& board, const std::string& fen) {
     board.fullmoveNumber = std::stoi(fields[5]);
 
     board.UpdateOccupancy();
-    UpdateAttacks(board);
 }

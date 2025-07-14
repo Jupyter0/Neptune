@@ -2,23 +2,23 @@
 
 using namespace NeptuneInternals;
 
-uint64_t perft(Board& board, int depth) {
+uint64_t Perft(Board& board, int depth) {
     uint64_t legalChildren = 0;
     if (depth == 0) return 1;
     Move moves[256];
     int pseudoMoveCount = GeneratePseudoLegalMoves(board, moves);
     for (int i = 0; i < pseudoMoveCount; ++i) {
         Move move = moves[i];
-        board.make_move(move);
+        board.MakeMove(move);
         Color us = board.whiteToMove ? BLACK : WHITE;
-        if (board.isSquareAttacked(board.kings[us], static_cast<Color>(1-us))) { board.unmake_move(); continue; }
-        legalChildren += perft(board, depth-1);
-        board.unmake_move();
+        if (board.isSquareAttacked(board.kings[us], static_cast<Color>(1-us))) { board.UnmakeMove(); continue; }
+        legalChildren += Perft(board, depth-1);
+        board.UnmakeMove();
     }
     return legalChildren;
 }
 
-uint64_t perft_divide(Board& board, int depth) {
+uint64_t PerftDivide(Board& board, int depth) {
     if (depth == 0) return 1;
     Move moves[256];
     int pseudoMoveCount = GeneratePseudoLegalMoves(board, moves);
@@ -33,11 +33,11 @@ uint64_t perft_divide(Board& board, int depth) {
 
             const Move& move = moves[i];
             Board copy = board;
-            copy.make_move(move);
+            copy.MakeMove(move);
             Color us = board.whiteToMove ? BLACK : WHITE;
             if (board.isSquareAttacked(board.kings[us], static_cast<Color>(1-us))) continue;
 
-            uint64_t nodes = perft(copy, depth - 1);
+            uint64_t nodes = Perft(copy, depth - 1);
             totalNodes.fetch_add(nodes, std::memory_order_relaxed);
 
             std::lock_guard<std::mutex> lock(cout_mutex);
@@ -54,9 +54,9 @@ uint64_t perft_divide(Board& board, int depth) {
     return totalNodes;
 }
 
-void perft_debug(Board& board, int depth) {
+void PerftDebug(Board& board, int depth) {
     auto start = std::chrono::high_resolution_clock::now();
-    uint64_t nodes = perft_divide(board, depth);
+    uint64_t nodes = PerftDivide(board, depth);
     auto end = std::chrono::high_resolution_clock::now();
 
     uint64_t micros = static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::microseconds>(end - start).count());
