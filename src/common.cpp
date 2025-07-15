@@ -232,4 +232,6 @@ std::array<std::array<uint64_t, 64>, 64> castleXOR = [] {
     return table;
 }();
 
+int infinity = 10000000;
+
 uint numThreads = 1;

@@ -47,6 +47,8 @@ extern uint64_t rank6;
 extern uint64_t rank7;
 extern uint64_t rank8;
 
+extern int infinity;
+
 extern std::array<std::array<uint64_t, 64>, 64> castleXOR;
 
 namespace NeptuneInternals
@@ -108,6 +110,17 @@ namespace NeptuneInternals
         table['q'] = QUEEN;
         table['k'] = KING;
 
+        return table;
+    }();
+
+    inline constexpr std::array<int, 7> pieceValue = []() {
+        std::array<int, 7> table {};
+        table[PAWN] = 100;
+        table[KNIGHT] = 300;
+        table[BISHOP] = 300;
+        table[ROOK] = 500;
+        table[QUEEN] = 900;
+        
         return table;
     }();
 }

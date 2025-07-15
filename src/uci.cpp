@@ -1,5 +1,7 @@
 #include "uci.h"
 
+using PVLine = std::vector<Move>;
+
 void UCI(std::string line, Board& board) {
     if (line == "uci") {
         std::cout << "id name Neptune\n";
@@ -17,6 +19,16 @@ void UCI(std::string line, Board& board) {
         if (line.rfind("go perft", 0) == 0) {
             int depth = line.substr(0, 10)[9] - '0';
             PerftDebug(board, depth);
+        } else {
+            PVLine bestLine;
+            int eval = MiniMax(board, 9, board.whiteToMove, bestLine);
+            std::cout << "Eval: " << eval << "\nBest line:\n";
+            for (const Move& move : bestLine) {
+                std::cout << MoveToUCI(move) << " ";
+            }
+            std::cout << "\n";
+            std::cout << "bestmove " << MoveToUCI(bestLine[0]);
+            std::cout << "\n" << std::flush;
         }
     } else if (line.rfind("setoption", 0) == 0) {
         std::istringstream iss(line);

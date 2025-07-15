@@ -9,5 +9,6 @@ using namespace NeptuneInternals;
 
 int GenerateLegalMoves(Board& board, Move* moves);
 int GeneratePseudoLegalMoves(Board& board, Move* moves);
+int GenerateCaptures(Board& board, Move* moves);
 
 #endif

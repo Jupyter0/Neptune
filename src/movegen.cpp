@@ -190,3 +190,22 @@ int GenerateLegalMoves(Board& board, Move* moves /*Should be empty!*/) {
 
     return count;
 }
+
+int GenerateCaptures(Board& board, Move* moves) {
+    int count = 0;
+
+    Move pseudoMoves[256];
+    int pseudoCount = GeneratePseudoLegalMoves(board, pseudoMoves);
+
+    for (int i = 0; i < pseudoCount; i++) {
+        Move& move = pseudoMoves[i];
+        Piece captured = board.pieceAt[move.to];
+        
+        // Capture if opponent piece on 'to' square or promotion (since promotions are tactical)
+        if (captured != EMPTY || move.promotion != 0) {
+            moves[count++] = move;
+        }
+    }
+
+    return count;
+}

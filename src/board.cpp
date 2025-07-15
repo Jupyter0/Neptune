@@ -12,7 +12,7 @@ void Board::MakeMove(Move move) {
     Piece capturedPiece = pieceAt[to];
     int forwards = isWhite ? 8 : -8;
     
-    MoveState snapshot;
+    MoveState& snapshot = history[ply++];
     snapshot.castlingRights = castlingRights;
     snapshot.enPassantSquare = enPassantSquare;
     snapshot.halfmoveClock = halfmoveClock;
@@ -27,8 +27,6 @@ void Board::MakeMove(Move move) {
     snapshot.enPassant = move.isEnPassant;
     snapshot.whiteKingPos = kings[WHITE];
     snapshot.blackKingPos = kings[BLACK];
-
-    history[ply++] = snapshot;
     
     ++halfmoveClock;
     enPassantSquare = 0;
@@ -68,17 +66,16 @@ void Board::MakeMove(Move move) {
     bool isDouble = std::abs(to - from) == 16;
     enPassantSquare = static_cast<uint8_t>(((1 << 6) | static_cast<uint8_t>(from + forwards)) * isDouble * (movedPiece == PAWN)); 
 
-    if (move.isEnPassant) {
+    if (__builtin_expect(move.isEnPassant, 0)) {
         int capSq = to - forwards;
         bitboards[1-mySide][0] &= ~bitMasks[capSq];
         pieceAt[capSq] = EMPTY;
-    } else if (move.promotion != 0) {
+    } else if (__builtin_expect(move.promotion != 0, 0)) {
         bitboards[mySide][0] &= ~toBB;
         Piece promoted = NeptuneInternals::charToPiece[static_cast<u_char>(move.promotion)];
         bitboards[mySide][promoted-1] |= toBB;
         pieceAt[to] = promoted;
     }
-
 
     if (capturedPiece != EMPTY && !move.isEnPassant) {
         bitboards[1-mySide][capturedPiece-1] &= ~toBB;
