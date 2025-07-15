@@ -47,6 +47,8 @@ extern uint64_t rank6;
 extern uint64_t rank7;
 extern uint64_t rank8;
 
+extern std::array<std::array<uint64_t, 64>, 64> castleXOR;
+
 namespace NeptuneInternals
 {
     enum Squares {

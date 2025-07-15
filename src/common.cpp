@@ -221,4 +221,15 @@ uint64_t rank6 = 0x0000FF0000000000ULL;
 uint64_t rank7 = 0x00FF000000000000ULL;
 uint64_t rank8 = 0xFF00000000000000ULL;
 
+std::array<std::array<uint64_t, 64>, 64> castleXOR = [] {
+    std::array<std::array<uint64_t, 64>, 64> table{};
+
+    table[e1][g1] = 0xa0; // h1 & f1
+    table[e1][c1] = 0x9;  // a1 & d1
+    table[e8][g8] = 0xa000000000000000; // h8 & f8
+    table[e8][c8] = 0x900000000000000;  // a8 & d8
+
+    return table;
+}();
+
 uint numThreads = 1;

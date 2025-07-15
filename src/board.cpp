@@ -41,26 +41,24 @@ void Board::MakeMove(Move move) {
 
     if (movedPiece == KING) {
         kings[mySide] = to;
-        if (from == e1 || from == e8) {
-            castlingRights &= static_cast<uint8_t>(~static_cast<uint8_t>(3 << (2 * (1 - mySide)))); // Clear castling rights
-            uint64_t& rooks = bitboards[mySide][3];
-            if (to == g1) {
-                rooks = (rooks & ~bitMasks[h1]) | bitMasks[f1];
-                pieceAt[h1] = EMPTY;
-                pieceAt[f1] = ROOK;
-            } else if (to == c1) {
-                rooks = (rooks & ~bitMasks[a1]) | bitMasks[d1];
-                pieceAt[a1] = EMPTY;
-                pieceAt[d1] = ROOK;
-            } else if (to == g8) {
-                rooks = (rooks & ~bitMasks[h8]) | bitMasks[f8];
-                pieceAt[h8] = EMPTY;
-                pieceAt[f8] = ROOK;
-            } else if (to == c8) {
-                rooks = (rooks & ~bitMasks[a8]) | bitMasks[d8];
-                pieceAt[a8] = EMPTY;
-                pieceAt[d8] = ROOK;
-            }
+
+        uint64_t rookToFrom = castleXOR[from][to];
+        uint64_t& rooks = bitboards[mySide][3];
+
+        castlingRights &= static_cast<uint8_t>(~static_cast<uint8_t>(3 << (2 * (1 - mySide)))); // Clear castling rights
+        rooks ^= rookToFrom;
+
+        if (rookToFrom) {
+            //First bit of rookToFrom
+            uint8_t sq = static_cast<uint8_t>(__builtin_ctzll(rookToFrom));
+            rookToFrom &= rookToFrom - 1;
+
+            pieceAt[sq] = static_cast<Piece>(ROOK - pieceAt[sq]);
+
+            //Second bit of rookToFrom
+            sq = static_cast<uint8_t>(__builtin_ctzll(rookToFrom));
+
+            pieceAt[sq] = static_cast<Piece>(ROOK - pieceAt[sq]);
         }
     }
 
