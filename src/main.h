@@ -3,6 +3,7 @@
 
 #include "common.h"
 #include "uci.h"
+#include "zobrist.h"
 
 int main();
 

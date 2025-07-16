@@ -27,8 +27,13 @@ void Board::MakeMove(Move move) {
     snapshot.enPassant = move.isEnPassant;
     snapshot.whiteKingPos = kings[WHITE];
     snapshot.blackKingPos = kings[BLACK];
+    snapshot.zobristKey = zobristKey;
     
     ++halfmoveClock;
+
+    if (enPassantSquare != 0)
+        zobristKey ^= zobristEnPassant[enPassantSquare & 7];
+
     enPassantSquare = 0;
     pieceAt[to] = movedPiece;
 
@@ -37,6 +42,9 @@ void Board::MakeMove(Move move) {
     if (movedPiece == EMPTY) {
         std::cout << "Moving nothing\n" << std::flush;
     }
+
+    zobristKey ^= zobristPiece[mySide][movedPiece - 1][from];
+    zobristKey ^= zobristPiece[mySide][movedPiece - 1][to];
 
     bitboards[mySide][movedPiece-1] &= ~fromBB;
     bitboards[mySide][movedPiece-1] |= toBB;
@@ -64,24 +72,33 @@ void Board::MakeMove(Move move) {
         }
     }
 
+    zobristKey ^= zobristCastling[castlingRights];
     castlingRights &= ~(castlingClearTable[from] | castlingClearTable[to]);
+    zobristKey ^= zobristCastling[castlingRights];
 
     // If its not a double push, this will evaluate to 0
     bool isDouble = std::abs(to - from) == 16;
     enPassantSquare = static_cast<uint8_t>(((1 << 6) | static_cast<uint8_t>(from + forwards)) * isDouble * (movedPiece == PAWN)); 
 
+    if (enPassantSquare != 0)
+        zobristKey ^= zobristEnPassant[enPassantSquare & 7];
+
     if (__builtin_expect(move.isEnPassant, 0)) {
         int capSq = to - forwards;
+        zobristKey ^= zobristPiece[1 - mySide][PAWN - 1][capSq];
         bitboards[1-mySide][0] &= ~bitMasks[capSq];
         pieceAt[capSq] = EMPTY;
     } else if (__builtin_expect(move.promotion != 0, 0)) {
         bitboards[mySide][0] &= ~toBB;
         Piece promoted = NeptuneInternals::charToPiece[static_cast<u_char>(move.promotion)];
+        zobristKey ^= zobristPiece[mySide][movedPiece - 1][to];       // Undo pawn placement
+        zobristKey ^= zobristPiece[mySide][promoted - 1][to];         // Add promoted piece
         bitboards[mySide][promoted-1] |= toBB;
         pieceAt[to] = promoted;
     }
 
     if (capturedPiece != EMPTY && !move.isEnPassant) {
+        zobristKey ^= zobristPiece[1 - mySide][capturedPiece - 1][to];
         bitboards[1-mySide][capturedPiece-1] &= ~toBB;
         halfmoveClock = 0;
     }
@@ -89,6 +106,7 @@ void Board::MakeMove(Move move) {
     pieceAt[from] = EMPTY;
 
     whiteToMove = !whiteToMove;
+    zobristKey ^= zobristSideToMove;
     fullmoveNumber += !whiteToMove;
 
     UpdateOccupancy();
@@ -176,6 +194,8 @@ void Board::UnmakeMove() {
             pieceAt[a8] = ROOK;
         }
     }
+
+    zobristKey = state.zobristKey;
 
     UpdateOccupancy();   // recompute generalboards[3]
 }

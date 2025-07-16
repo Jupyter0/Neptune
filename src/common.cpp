@@ -34,7 +34,7 @@ Move ParseUCIMove(const std::string& uci, Piece pieceTable[64]) {
 
     bool isEnpassant = false;
 
-    if ((pieceTable[from] == PAWN) && ((std::abs(to - from) & 7) == 0)) isEnpassant = true;
+    if ((pieceTable[from] == PAWN) && ((std::abs(to - from) & 7) != 0) && (pieceTable[to] == EMPTY)) isEnpassant = true;
 
     return Move(from, to, promotion, isEnpassant);
 }
@@ -239,3 +239,8 @@ std::array<std::array<uint64_t, 64>, 64> castleXOR = [] {
 int infinity = 10000000;
 
 uint numThreads = 1;
+
+uint64_t zobristPiece[2][6][64] = {};
+uint64_t zobristEnPassant[8] = {};
+uint64_t zobristCastling[16] = {};
+uint64_t zobristSideToMove = {};

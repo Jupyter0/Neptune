@@ -135,4 +135,24 @@ void SetBB(Board& board, const std::string& fen) {
     board.fullmoveNumber = std::stoi(fields[5]);
 
     board.UpdateOccupancy();
+
+    uint64_t hash = 0;
+
+    for (int square = 0; square < 64; ++square) {
+        Piece piece = board.pieceAt[square]; // however you access the square
+        if (piece != EMPTY) {
+            Color pieceColor = static_cast<Color>((board.generalboards[WHITE] & bitMasks[square]) == 0);
+            hash ^= zobristPiece[pieceColor][piece - 1][square];
+        }
+    }
+
+    if (!board.whiteToMove)
+        hash ^= zobristSideToMove;
+
+    if (board.enPassantSquare != 0)
+        hash ^= zobristEnPassant[board.enPassantSquare & 7];
+
+    hash ^= zobristCastling[board.castlingRights]; // 4-bit number: e.g. 1101b = white KQ and black K
+
+    board.zobristKey = hash;
 }

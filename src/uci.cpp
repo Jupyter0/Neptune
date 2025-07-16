@@ -24,7 +24,8 @@ void UCI(std::string line, Board& board) {
         } else {
             PVLine bestLine;
             nodesSearched = 0;
-            int eval = MiniMax(board, 5, board.whiteToMove, bestLine);
+            TranspositionTable tt(25);
+            int eval = MiniMax(board, 5, board.whiteToMove, bestLine, tt);
             std::cout << "Evaluated " << nodesSearched << " positions\n";
             std::cout << "Eval: " << eval << "\nBest line:\n";
             for (const Move& move : bestLine) {

@@ -1,4 +1,5 @@
 #include "eval.h"
+#include "diagnostics.h"
 
 int Evaluate(Board& board) {
     int score = 0;
@@ -15,5 +16,6 @@ int Evaluate(Board& board) {
     score -= pieceValue[ROOK] * (__builtin_popcountll(board.bitboards[BLACK][ROOK-1]));
     score -= pieceValue[QUEEN] * (__builtin_popcountll(board.bitboards[BLACK][QUEEN-1]));
 
+    ++nodesSearched;
     return score;
 }

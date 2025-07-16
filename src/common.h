@@ -18,6 +18,11 @@ extern uint numThreads;
 #define ROOK_ATTACKS(sq, occ) (rookAttackTable[sq][((occ & rookBlockerMask[sq]) * rookMagic[sq]) >> rookShift[sq]])
 #define BISHOP_ATTACKS(sq, occ) (bishopAttackTable[sq][((occ & bishopBlockerMask[sq]) * bishopMagic[sq]) >> bishopShift[sq]])
 
+extern uint64_t zobristPiece[2][6][64];  // [color][pieceType][square]
+extern uint64_t zobristEnPassant[8];    // [file]
+extern uint64_t zobristCastling[16];    // 4-bit castling rights (16 possibilities)
+extern uint64_t zobristSideToMove;      // Just one value
+
 /**
  * @brief Bitboard array for piece attacks
  * @attention Entries for sliding pieces is empty. They are {} past the first index
@@ -77,6 +82,7 @@ namespace NeptuneInternals
         uint8_t enPassantSquare; //0b0fdddddd f: flag, d: data
         int halfmoveClock; //Used for 50-move rule
         int fullmoveNumber; //Counts the move number
+        uint64_t zobristKey;
 
         Piece capturedPiece;
         Piece movedPiece;
@@ -98,6 +104,13 @@ namespace NeptuneInternals
 
         Move(uint8_t From, uint8_t To, char Promotion = 0, bool EP = false) : from(From), to(To), promotion(Promotion), isEnPassant(EP) {}
         Move() : from(0), to(0) {}
+
+        bool operator==(const Move& other) const {
+            return from == other.from &&
+                to == other.to &&
+                promotion == other.promotion &&
+                isEnPassant == other.isEnPassant;
+        }
     };
 
     inline constexpr std::array<Piece, 128> charToPiece = []() {

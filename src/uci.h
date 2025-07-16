@@ -5,6 +5,7 @@
 #include "boardsetup.h"
 #include "perft.h"
 #include "search.h"
+#include "transpositiontable.h"
 
 void UCI(std::string line, Board& board);
 
