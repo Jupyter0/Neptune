@@ -3,6 +3,8 @@
 
 #include "common.h"
 #include "board.h"
+#include "pst.h"
+#include "diagnostics.h"
 
 int Evaluate(Board& board);
 

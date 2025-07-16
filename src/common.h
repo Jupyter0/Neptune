@@ -125,17 +125,6 @@ namespace NeptuneInternals
 
         return table;
     }();
-
-    inline constexpr std::array<int, 7> pieceValue = []() {
-        std::array<int, 7> table {};
-        table[PAWN] = 100;
-        table[KNIGHT] = 300;
-        table[BISHOP] = 300;
-        table[ROOK] = 500;
-        table[QUEEN] = 900;
-        
-        return table;
-    }();
 }
 
 std::string IndexToFileRank(uint8_t index);

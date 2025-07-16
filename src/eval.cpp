@@ -1,20 +1,18 @@
 #include "eval.h"
-#include "diagnostics.h"
 
 int Evaluate(Board& board) {
     int score = 0;
 
-    score += pieceValue[PAWN] * (__builtin_popcountll(board.bitboards[WHITE][PAWN-1]));
-    score += pieceValue[KNIGHT] * (__builtin_popcountll(board.bitboards[WHITE][KNIGHT-1]));
-    score += pieceValue[BISHOP] * (__builtin_popcountll(board.bitboards[WHITE][BISHOP-1]));
-    score += pieceValue[ROOK] * (__builtin_popcountll(board.bitboards[WHITE][ROOK-1]));
-    score += pieceValue[QUEEN] * (__builtin_popcountll(board.bitboards[WHITE][QUEEN-1]));
+    for (int square = 0; square < 64; ++square) {
+        Piece piece = board.pieceAt[square];
+        if (piece == EMPTY) continue;
 
-    score -= pieceValue[PAWN] * (__builtin_popcountll(board.bitboards[BLACK][PAWN-1]));
-    score -= pieceValue[KNIGHT] * (__builtin_popcountll(board.bitboards[BLACK][KNIGHT-1]));
-    score -= pieceValue[BISHOP] * (__builtin_popcountll(board.bitboards[BLACK][BISHOP-1]));
-    score -= pieceValue[ROOK] * (__builtin_popcountll(board.bitboards[BLACK][ROOK-1]));
-    score -= pieceValue[QUEEN] * (__builtin_popcountll(board.bitboards[BLACK][QUEEN-1]));
+        Color color = (board.generalboards[WHITE] & bitMasks[square]) ? WHITE : BLACK;
+        int flippedSq = (color == WHITE) ? square : (56 ^ square);
+        int pstValue = PieceValue(piece, flippedSq, __builtin_popcountll(board.generalboards[2]));
+
+        score += (color == WHITE ? pstValue : -pstValue);
+    }
 
     ++nodesSearched;
     return score;

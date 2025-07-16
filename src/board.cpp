@@ -1,7 +1,5 @@
 #include "board.h"
 
-using namespace NeptuneInternals;
-
 void Board::MakeMove(Move move) {
     uint8_t from = move.from;
     uint8_t to = move.to;
