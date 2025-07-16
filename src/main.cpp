@@ -1,4 +1,5 @@
 #include "main.h"
+#include <fstream>
 
 int main() {
     std::string line;
@@ -7,5 +8,6 @@ int main() {
     Board board = Board();
     while (getline(std::cin, line)) {
         UCI(line, board);
+        if (line == "quit") break;
     }
 }

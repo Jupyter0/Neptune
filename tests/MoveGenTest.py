@@ -133,7 +133,7 @@ if __name__ == "__main__":
             elif line.strip():
                 if "Stock" in line: continue
                 if "info" in line: continue
-                if "Legal" in line: continue
+                if "Neptune" in line: continue
                 if "Nodes" in line: continue
                 if "Time" in line: continue
                 move = line[0:5].strip(":")

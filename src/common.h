@@ -127,7 +127,7 @@ namespace NeptuneInternals
 
 std::string IndexToFileRank(uint8_t index);
 
-NeptuneInternals::Move ParseUCIMove(const std::string& uci);
+NeptuneInternals::Move ParseUCIMove(const std::string& uci, NeptuneInternals::Piece pieceTable[64]);
 
 std::vector<std::string> SplitFen(const std::string& s);
 

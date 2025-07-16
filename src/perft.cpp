@@ -34,8 +34,8 @@ uint64_t PerftDivide(Board& board, int depth) {
             const Move& move = moves[i];
             Board copy = board;
             copy.MakeMove(move);
-            Color us = board.whiteToMove ? BLACK : WHITE;
-            if (board.isSquareAttacked(board.kings[us], static_cast<Color>(1-us))) continue;
+            Color us = copy.whiteToMove ? BLACK : WHITE;
+            if (copy.isSquareAttacked(copy.kings[us], static_cast<Color>(1-us))) continue;
 
             uint64_t nodes = Perft(copy, depth - 1);
             totalNodes.fetch_add(nodes, std::memory_order_relaxed);

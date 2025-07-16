@@ -41,7 +41,7 @@ void Position(Board& board, const std::string& input) {
     }
 
     for (size_t i = firstNewMove; i < movesTokens.size(); ++i) {
-        Move m = ParseUCIMove(movesTokens[i]);
+        Move m = ParseUCIMove(movesTokens[i], board.pieceAt);
         board.MakeMove(m);
         board.appliedMoves.push_back(m);
     }

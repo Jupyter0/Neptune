@@ -1,4 +1,5 @@
 #include "uci.h"
+#include "diagnostics.h"
 
 using PVLine = std::vector<Move>;
 
@@ -14,6 +15,7 @@ void UCI(std::string line, Board& board) {
         //Reset internal state if needed
         //No response required
     } else if (line.rfind("position", 0) == 0) {
+        board = Board();
         Position(board, line);
     } else if (line.rfind("go", 0) == 0) {
         if (line.rfind("go perft", 0) == 0) {
@@ -21,7 +23,9 @@ void UCI(std::string line, Board& board) {
             PerftDebug(board, depth);
         } else {
             PVLine bestLine;
-            int eval = MiniMax(board, 9, board.whiteToMove, bestLine);
+            nodesSearched = 0;
+            int eval = MiniMax(board, 5, board.whiteToMove, bestLine);
+            std::cout << "Evaluated " << nodesSearched << " positions\n";
             std::cout << "Eval: " << eval << "\nBest line:\n";
             for (const Move& move : bestLine) {
                 std::cout << MoveToUCI(move) << " ";
@@ -75,7 +79,5 @@ void UCI(std::string line, Board& board) {
     } else if (line == "stop") {
         //Stop calculating as soon as possible
         //Must respond with bestmove of the best move found so far
-    } else if (line == "quit") {
-        //Exit the engine
     }
 }

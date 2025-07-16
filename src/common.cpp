@@ -19,7 +19,7 @@ uint8_t FileRankToIndex(std::string s) {
     throw std::invalid_argument("Invalid Square: " + s);
 };
 
-Move ParseUCIMove(const std::string& uci) {
+Move ParseUCIMove(const std::string& uci, Piece pieceTable[64]) {
     if (uci.length() < 4) {
         throw std::invalid_argument("Invalid UCI move: " + uci);
     }
@@ -32,7 +32,11 @@ Move ParseUCIMove(const std::string& uci) {
         promotion = uci[4];
     }
 
-    return Move(from, to, promotion);
+    bool isEnpassant = false;
+
+    if ((pieceTable[from] == PAWN) && ((std::abs(to - from) & 7) == 0)) isEnpassant = true;
+
+    return Move(from, to, promotion, isEnpassant);
 }
 
 std::vector<std::string> SplitFen(const std::string& s) {

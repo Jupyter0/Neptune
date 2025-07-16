@@ -34,6 +34,10 @@ void Board::MakeMove(Move move) {
 
     Color mySide = isWhite ? WHITE : BLACK;
 
+    if (movedPiece == EMPTY) {
+        std::cout << "Moving nothing\n" << std::flush;
+    }
+
     bitboards[mySide][movedPiece-1] &= ~fromBB;
     bitboards[mySide][movedPiece-1] |= toBB;
 
