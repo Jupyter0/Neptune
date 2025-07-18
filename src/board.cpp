@@ -94,29 +94,30 @@ void Board::MakeMove(Move move) {
 
 void Board::UnmakeMove() {
     if (ply == 0) return;
-    const MoveState& state = history[--ply];
+    MoveState& state = history[--ply];
 
     // Restore game state
-    castlingRights = state.castlingRights;
-    enPassantSquare = state.enPassantSquare;
-    halfmoveClock = state.halfmoveClock;
-    whiteToMove = state.whiteToMove;
-    fullmoveNumber = state.fullmoveNumber;
+    castlingRights = state.GetCastlingRights();
+    enPassantSquare = state.GetEnPassantTarget();
+    halfmoveClock = state.GetHalfMoveClock();
+    whiteToMove = state.GetIsWhiteToMove();
+    fullmoveNumber = state.GetFullMoveNumber();
 
-    kings[WHITE] = state.whiteKingPos;
-    kings[BLACK] = state.blackKingPos;
-
-    uint8_t from = state.from;
-    uint8_t to = state.to;
+    uint8_t from = state.GetFrom();
+    uint8_t to = state.GetTo();
     uint64_t fromBB = bitMasks[from];
     uint64_t toBB = bitMasks[to];
 
     Color side = whiteToMove ? WHITE : BLACK;
     Color opponent = static_cast<Color>(1 - side);
 
-    Piece moved = state.movedPiece;
-    Piece captured = state.capturedPiece;
-    Piece promoted = state.promotedPiece;
+    Piece moved = state.GetMovedPiece();
+    Piece captured = state.GetCapturedPiece();
+    Piece promoted = state.GetPromotedPiece();
+
+    if (moved == EMPTY) {
+        std::cout << "Bugged Bitpacking\n" << std::flush;
+    }
 
     // Handle pieceAt[] restoration
     pieceAt[from] = moved;
@@ -140,7 +141,7 @@ void Board::UnmakeMove() {
     }
 
     // Handle en-passant
-    if (moved == PAWN && state.enPassant) {
+    if (moved == PAWN && state.GetIsEnpassant()) {
         int capSq = whiteToMove ? to - 8 : to + 8;
         bitboards[opponent][0] |= bitMasks[capSq];
         pieceAt[capSq] = PAWN;
@@ -175,7 +176,7 @@ void Board::UnmakeMove() {
         }
     }
 
-    zobristKey = state.zobristKey;
+    zobristKey = state.GetZobristKey();
 
     UpdateOccupancy();   // recompute generalboards[3]
     UpdatePins(whiteToMove ? WHITE : BLACK);
@@ -251,7 +252,7 @@ uint64_t Board::GetAttackersTo(uint8_t square, Color attackingSide) {
 }
 
 void Board::UpdatePins(Color forSide) {
-    memset(pinMask, -1, sizeof(pinMask));
+    globalPinVersion += 1;
     uint64_t diagonals = bitboards[1-forSide][BISHOP-1] | bitboards[1-forSide][QUEEN-1];
     uint64_t orthogonals = bitboards[1-forSide][ROOK-1] | bitboards[1-forSide][QUEEN-1];
 
@@ -267,6 +268,7 @@ void Board::UpdatePins(Color forSide) {
         if (__builtin_popcountll(piecesOnRay) != 1) continue;
 
         uint8_t pinnedSquare = static_cast<uint8_t>(__builtin_ctzll(piecesOnRay));
+        pinVersion[pinnedSquare] = globalPinVersion;
         pinMask[pinnedSquare] = pinRay | bitMasks[sq];
     }
 
@@ -279,25 +281,23 @@ void Board::UpdatePins(Color forSide) {
         if (__builtin_popcountll(piecesOnRay) != 1) continue;
 
         uint8_t pinnedSquare = static_cast<uint8_t>(__builtin_ctzll(piecesOnRay));
+        pinVersion[pinnedSquare] = globalPinVersion;
         pinMask[pinnedSquare] = pinRay | bitMasks[sq];
     }
 }
 
 void Board::SaveSnapshot(Move move) {
     MoveState& snapshot = history[ply++];
-    snapshot.castlingRights = castlingRights;
-    snapshot.enPassantSquare = enPassantSquare;
-    snapshot.halfmoveClock = halfmoveClock;
-    snapshot.fullmoveNumber = fullmoveNumber;
-    snapshot.from = move.from;
-    snapshot.to = move.to;
-    snapshot.whiteToMove = whiteToMove;
+    snapshot.SetCastlingRights(castlingRights);
+    snapshot.SetEnPassantTarget(enPassantSquare);
+    snapshot.SetHalfmoveClock(halfmoveClock);
+    snapshot.SetFullMoveNumber(fullmoveNumber);
+    snapshot.SetFromTo(move.from, move.to);
+    snapshot.SetIsWhiteToMove(whiteToMove);
 
-    snapshot.capturedPiece = pieceAt[move.to];
-    snapshot.movedPiece = pieceAt[move.from];
-    snapshot.promotedPiece = charToPiece[static_cast<u_char>(move.promotion)];
-    snapshot.enPassant = move.isEnPassant;
-    snapshot.whiteKingPos = kings[WHITE];
-    snapshot.blackKingPos = kings[BLACK];
-    snapshot.zobristKey = zobristKey;
+    snapshot.SetCapturedPiece(pieceAt[move.to]);
+    snapshot.SetMovedPiece(pieceAt[move.from]);
+    snapshot.SetPromotedPiece(charToPiece[static_cast<u_char>(move.promotion)]);
+    snapshot.SetIsEnpassant(move.isEnPassant);
+    snapshot.SetZobristKey(zobristKey);
 }

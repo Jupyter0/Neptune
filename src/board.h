@@ -11,7 +11,9 @@ public:
     MoveState history[256];
     int ply = 0;
 
-    uint64_t pinMask[64];
+    uint64_t pinMask[64] = {~0ULL};
+    uint64_t pinVersion[64] = {0};
+    uint64_t globalPinVersion = 0;
 
     uint8_t kings[2];
 
@@ -27,8 +29,8 @@ public:
     uint8_t castlingRights; //0b0000KQkq K: WKS, Q: WQS, k: BKS, q: BQS
     uint8_t enPassantSquare; //0b0fdddddd f: flag, d: data
 
-    int halfmoveClock; //Used for 50-move rule
-    int fullmoveNumber; //Counts the move number
+    uint8_t halfmoveClock; //Used for 50-move rule
+    uint16_t fullmoveNumber; //Counts the move number
 
     uint64_t zobristKey = 0; //Zobrist Hash !!Don't use this, this feature is not yet implemented!!
 

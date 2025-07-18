@@ -22,7 +22,6 @@ void Position(Board& board, const std::string& input) {
         }
         SetBB(board, fenString);
     }
-
     board.UpdatePins(board.whiteToMove ? WHITE : BLACK);
 
     size_t movesIndex = input.find(" moves ");
@@ -133,8 +132,8 @@ void SetBB(Board& board, const std::string& fen) {
         }
     }
 
-    board.halfmoveClock = std::stoi(fields[4]);
-    board.fullmoveNumber = std::stoi(fields[5]);
+    board.halfmoveClock = static_cast<uint8_t>(std::stoi(fields[4]));
+    board.fullmoveNumber = static_cast<uint16_t>(std::stoi(fields[5]));
 
     board.UpdateOccupancy();
 

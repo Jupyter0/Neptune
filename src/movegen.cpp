@@ -54,8 +54,9 @@ void GenerateRookMoves(uint64_t pieces, Board& board, Color color, Move* moves, 
     while (pieces) {
         uint8_t sq = static_cast<uint8_t>(__builtin_ctzll(pieces));
         pieces &= pieces -1;
+        uint64_t pinRay = board.pinVersion[sq] == board.globalPinVersion ? board.pinMask[sq] : ~0ULL;
 
-        uint64_t attacks = ROOK_ATTACKS(sq, all) & ~friendly & board.pinMask[sq] & limitMask;
+        uint64_t attacks = ROOK_ATTACKS(sq, all) & ~friendly & pinRay & limitMask;
 
         while (attacks) {
             uint8_t to = static_cast<uint8_t>(__builtin_ctzll(attacks));
@@ -71,8 +72,9 @@ void GenerateBishopMoves(uint64_t pieces, Board& board, Color color, Move* moves
     while (pieces) {
         uint8_t sq = static_cast<uint8_t>(__builtin_ctzll(pieces));
         pieces &= pieces -1;
+        uint64_t pinRay = board.pinVersion[sq] == board.globalPinVersion ? board.pinMask[sq] : ~0ULL;
 
-        uint64_t attacks = BISHOP_ATTACKS(sq, all) & ~friendly & board.pinMask[sq] & limitMask;
+        uint64_t attacks = BISHOP_ATTACKS(sq, all) & ~friendly & pinRay & limitMask;
 
         while (attacks) {
             uint8_t to = static_cast<uint8_t>(__builtin_ctzll(attacks));
@@ -95,8 +97,9 @@ void GenerateKnightMoves(uint64_t pieces, Board& board, Color color, Move* moves
     while(pieces) {
         uint8_t sq = static_cast<uint8_t>(__builtin_ctzll(pieces));
         pieces &= pieces - 1;
+        if (board.pinVersion[sq] == board.globalPinVersion) continue;
 
-        uint64_t attacks = attacksBB[KNIGHT-1][color][sq] & ~friendly & board.pinMask[sq] & limitMask;
+        uint64_t attacks = attacksBB[KNIGHT-1][color][sq] & ~friendly & limitMask;
 
         while (attacks) {
             uint8_t to = static_cast<uint8_t>(__builtin_ctzll(attacks));
@@ -140,11 +143,11 @@ void GeneratePawnMoves(uint64_t pawns, Board& board, Color color, Move* moves, i
     while (pawns) {
         uint8_t sq = static_cast<uint8_t>(__builtin_ctzll(pawns));
         pawns &= pawns - 1;
-        if (board.pinMask[sq] == 0) continue;
         uint8_t rank = sq >> 3;
         bool canDouble = (rank == startRank);
+        uint64_t pinRay = board.pinVersion[sq] == board.globalPinVersion ? board.pinMask[sq] : ~0ULL;
         
-        uint64_t attacks = attacksBB[PAWN-1][color][sq] & board.pinMask[sq] & limitMask;
+        uint64_t attacks = attacksBB[PAWN-1][color][sq] & pinRay & limitMask;
         while (attacks) {
             uint8_t target = static_cast<uint8_t>(__builtin_ctzll(attacks));
             attacks &= attacks - 1;
@@ -165,7 +168,7 @@ void GeneratePawnMoves(uint64_t pawns, Board& board, Color color, Move* moves, i
         }
         if (((sq + forward) < 0) || ((sq + forward) >= 64)) continue;
         uint8_t step = static_cast<uint8_t>(sq + forward);
-        if ((bitMasks[step] & all) || !(bitMasks[step] & board.pinMask[sq])) continue;
+        if ((bitMasks[step] & all) || !(bitMasks[step] & pinRay)) continue;
         if (bitMasks[step] & limitMask) {
             if (rank == promotionRank) {
                 moves[count++] = Move(sq, step, 'q');
