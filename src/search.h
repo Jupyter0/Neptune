@@ -11,5 +11,6 @@ using PVLine = std::vector<Move>;
 
 int MiniMax(Board& board, int depth, bool maximizingPlayer, PVLine& line, TranspositionTable& tt, int alpha = -infinity, int beta = infinity);
 int Quiescence(Board& board, int alpha, int beta, bool maximizingPlayer);
+int IterativeSearch(Board& board, int maxDepth, PVLine& line);
 
 #endif

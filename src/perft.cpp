@@ -6,12 +6,10 @@ uint64_t Perft(Board& board, int depth) {
     uint64_t legalChildren = 0;
     if (depth == 0) return 1;
     Move moves[256];
-    int pseudoMoveCount = GeneratePseudoLegalMoves(board, moves);
-    for (int i = 0; i < pseudoMoveCount; ++i) {
+    int moveCount = GenerateLegalMoves(board, moves);
+    for (int i = 0; i < moveCount; ++i) {
         Move move = moves[i];
         board.MakeMove(move);
-        Color us = board.whiteToMove ? BLACK : WHITE;
-        if (board.isSquareAttacked(board.kings[us], static_cast<Color>(1-us))) { board.UnmakeMove(); continue; }
         legalChildren += Perft(board, depth-1);
         board.UnmakeMove();
     }
@@ -21,35 +19,41 @@ uint64_t Perft(Board& board, int depth) {
 uint64_t PerftDivide(Board& board, int depth) {
     if (depth == 0) return 1;
     Move moves[256];
-    int pseudoMoveCount = GeneratePseudoLegalMoves(board, moves);
-    std::atomic<int> index(0);
-    std::atomic<uint64_t> totalNodes = 0;
-    std::mutex cout_mutex;
-
-    auto worker = [&]() {
-        while(true) {
-            int i = index.fetch_add(1);
-            if (i >= pseudoMoveCount) break;
-
-            const Move& move = moves[i];
-            Board copy = board;
-            copy.MakeMove(move);
-            Color us = copy.whiteToMove ? BLACK : WHITE;
-            if (copy.isSquareAttacked(copy.kings[us], static_cast<Color>(1-us))) continue;
-
-            uint64_t nodes = Perft(copy, depth - 1);
-            totalNodes.fetch_add(nodes, std::memory_order_relaxed);
-
-            std::lock_guard<std::mutex> lock(cout_mutex);
-            std::cout << MoveToUCI(move) << ": " << nodes << '\n';
-        }
-    };
-
-    std::vector<std::thread> threads;
-    for (uint i = 0; i < numThreads; ++i) {
-        threads.emplace_back(worker);
+    int moveCount = GenerateLegalMoves(board, moves);
+    uint64_t totalNodes = 0;
+    for (int i = 0; i < moveCount; ++i) {
+        const Move& move = moves[i];
+        Board copy = board;
+        copy.MakeMove(move);
+        uint64_t nodes = Perft(copy, depth - 1);
+        totalNodes += nodes;
+        std::cout << MoveToUCI(move) << ": " << nodes << '\n';
     }
-    for (auto& t : threads) t.join();
+//    std::atomic<int> index(0);
+//    std::atomic<uint64_t> totalNodes = 0;
+//    std::mutex cout_mutex;
+//
+//    auto worker = [&]() {
+//        while(true) {
+//            int i = index.fetch_add(1);
+//            if (i >= moveCount) break;
+//
+//            const Move& move = moves[i];
+//            Board copy = board;
+//            copy.MakeMove(move);
+//            uint64_t nodes = Perft(copy, depth - 1);
+//            totalNodes.fetch_add(nodes, std::memory_order_relaxed);
+//
+//            std::lock_guard<std::mutex> lock(cout_mutex);
+//            std::cout << MoveToUCI(move) << ": " << nodes << '\n';
+//        }
+//    };
+//
+//    std::vector<std::thread> threads;
+//    for (uint i = 0; i < numThreads; ++i) {
+//        threads.emplace_back(worker);
+//    }
+//    for (auto& t : threads) t.join();
 
     return totalNodes;
 }

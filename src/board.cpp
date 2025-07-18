@@ -10,23 +10,8 @@ void Board::MakeMove(Move move) {
     Piece capturedPiece = pieceAt[to];
     int forwards = isWhite ? 8 : -8;
     
-    MoveState& snapshot = history[ply++];
-    snapshot.castlingRights = castlingRights;
-    snapshot.enPassantSquare = enPassantSquare;
-    snapshot.halfmoveClock = halfmoveClock;
-    snapshot.fullmoveNumber = fullmoveNumber;
-    snapshot.from = from;
-    snapshot.to = to;
-    snapshot.whiteToMove = whiteToMove;
+    SaveSnapshot(move);
 
-    snapshot.capturedPiece = capturedPiece;
-    snapshot.movedPiece = movedPiece;
-    snapshot.promotedPiece = charToPiece[static_cast<u_char>(move.promotion)];
-    snapshot.enPassant = move.isEnPassant;
-    snapshot.whiteKingPos = kings[WHITE];
-    snapshot.blackKingPos = kings[BLACK];
-    snapshot.zobristKey = zobristKey;
-    
     ++halfmoveClock;
 
     if (enPassantSquare != 0)
@@ -36,10 +21,6 @@ void Board::MakeMove(Move move) {
     pieceAt[to] = movedPiece;
 
     Color mySide = isWhite ? WHITE : BLACK;
-
-    if (movedPiece == EMPTY) {
-        std::cout << "Moving nothing\n" << std::flush;
-    }
 
     zobristKey ^= zobristPiece[mySide][movedPiece - 1][from];
     zobristKey ^= zobristPiece[mySide][movedPiece - 1][to];
@@ -108,6 +89,7 @@ void Board::MakeMove(Move move) {
     fullmoveNumber += !whiteToMove;
 
     UpdateOccupancy();
+    UpdatePins(whiteToMove ? WHITE : BLACK);
 }
 
 void Board::UnmakeMove() {
@@ -196,6 +178,7 @@ void Board::UnmakeMove() {
     zobristKey = state.zobristKey;
 
     UpdateOccupancy();   // recompute generalboards[3]
+    UpdatePins(whiteToMove ? WHITE : BLACK);
 }
 void Board::UpdateOccupancy() {
     generalboards[WHITE] = bitboards[WHITE][0] | bitboards[WHITE][1] | bitboards[WHITE][2] | bitboards[WHITE][3] | bitboards[WHITE][4] | bitboards[WHITE][5];
@@ -210,15 +193,18 @@ bool Board::hasEnPassant() const {
     return (enPassantSquare & (1 << 6)) != 0;
 }
 bool Board::isKingInCheck(bool white) {
-    return white ? (blackAttacks & bitMasks[kings[WHITE]]) != 0
-                : (whiteAttacks & bitMasks[kings[BLACK]]) != 0;
+    return white ? (isSquareAttacked(kings[WHITE], BLACK, false))
+                : (isSquareAttacked(kings[BLACK], WHITE, false));
 }
-bool Board::isSquareAttacked(uint8_t square, Color attacker) {
+bool Board::isSquareAttacked(uint8_t square, Color attacker, bool excludeKing) {
     if (attacksBB[KNIGHT-1][attacker][square] & bitboards[attacker][KNIGHT-1]) return true;
     if (attacksBB[KING-1][attacker][square] & bitboards[attacker][KING-1]) return true;
     if (attacksBB[PAWN-1][1-attacker][square] & bitboards[attacker][PAWN-1]) return true;
 
-    const uint64_t all = generalboards[2];
+    uint64_t all = generalboards[2];
+    if (excludeKing) {
+        all = generalboards[2] ^ bitboards[1-attacker][KING-1];
+    }
 
     uint64_t rookLike = ROOK_ATTACKS(square, all);
     if (rookLike & (bitboards[attacker][ROOK-1] | bitboards[attacker][QUEEN-1])) return true;
@@ -228,7 +214,90 @@ bool Board::isSquareAttacked(uint8_t square, Color attacker) {
 
     return false;
 }
+
+bool Board::isSquareAttacked(uint8_t* squares, int numSquares, Color attacker, bool excludeKing) {
+    for (int i = 0; i < numSquares; ++i) {
+        if (isSquareAttacked(squares[i], attacker, excludeKing)) return true;
+    }
+    return false;
+}
 uint8_t Board::getEnPassantTarget() const {
     // Returns 0–63 square index if en passant is available; undefined otherwise
     return enPassantSquare & 0b00111111;
+}
+
+uint64_t Board::GetAttackersTo(uint8_t square, Color attackingSide) {
+    uint64_t occupancy = generalboards[2];
+    uint64_t attackers = 0ULL;
+
+    // Pawns
+    attackers |= attacksBB[PAWN-1][1-attackingSide][square] & bitboards[attackingSide][PAWN-1];
+
+    // Knights
+    attackers |= attacksBB[KNIGHT-1][attackingSide][square] & bitboards[attackingSide][KNIGHT - 1];
+
+    // Kings (for completeness, though rarely needed)
+    attackers |= attacksBB[KING-1][attackingSide][square] & bitboards[attackingSide][KING - 1];
+
+    // Bishops / Queens
+    uint64_t bishopSliders = bitboards[attackingSide][BISHOP - 1] | bitboards[attackingSide][QUEEN - 1];
+    attackers |= BISHOP_ATTACKS(square, occupancy) & bishopSliders;
+
+    // Rooks / Queens
+    uint64_t rookSliders = bitboards[attackingSide][ROOK - 1] | bitboards[attackingSide][QUEEN - 1];
+    attackers |= ROOK_ATTACKS(square, occupancy) & rookSliders;
+
+    return attackers;
+}
+
+void Board::UpdatePins(Color forSide) {
+    memset(pinMask, -1, sizeof(pinMask));
+    uint64_t diagonals = bitboards[1-forSide][BISHOP-1] | bitboards[1-forSide][QUEEN-1];
+    uint64_t orthogonals = bitboards[1-forSide][ROOK-1] | bitboards[1-forSide][QUEEN-1];
+
+    uint64_t diagonalAttackers = BISHOP_ATTACKS(kings[forSide], generalboards[1-forSide]) & diagonals;
+    uint64_t orthogonalAttackers = ROOK_ATTACKS(kings[forSide], generalboards[1-forSide]) & orthogonals;
+
+    while (diagonalAttackers) {
+        int sq = __builtin_ctzll(diagonalAttackers);
+        diagonalAttackers &= diagonalAttackers - 1;
+        uint64_t pinRay = lineBB[sq][kings[forSide]];
+        uint64_t piecesOnRay = pinRay & generalboards[forSide];
+        //Either there is no piece to be pinned or there are more blockers.
+        if (__builtin_popcountll(piecesOnRay) != 1) continue;
+
+        uint8_t pinnedSquare = static_cast<uint8_t>(__builtin_ctzll(piecesOnRay));
+        pinMask[pinnedSquare] = pinRay | bitMasks[sq];
+    }
+
+    while (orthogonalAttackers) {
+        int sq = __builtin_ctzll(orthogonalAttackers);
+        orthogonalAttackers &= orthogonalAttackers - 1;
+        uint64_t pinRay = lineBB[sq][kings[forSide]];
+        uint64_t piecesOnRay = pinRay & generalboards[forSide];
+        //Either there is no piece to be pinned or there are more blockers.
+        if (__builtin_popcountll(piecesOnRay) != 1) continue;
+
+        uint8_t pinnedSquare = static_cast<uint8_t>(__builtin_ctzll(piecesOnRay));
+        pinMask[pinnedSquare] = pinRay | bitMasks[sq];
+    }
+}
+
+void Board::SaveSnapshot(Move move) {
+    MoveState& snapshot = history[ply++];
+    snapshot.castlingRights = castlingRights;
+    snapshot.enPassantSquare = enPassantSquare;
+    snapshot.halfmoveClock = halfmoveClock;
+    snapshot.fullmoveNumber = fullmoveNumber;
+    snapshot.from = move.from;
+    snapshot.to = move.to;
+    snapshot.whiteToMove = whiteToMove;
+
+    snapshot.capturedPiece = pieceAt[move.to];
+    snapshot.movedPiece = pieceAt[move.from];
+    snapshot.promotedPiece = charToPiece[static_cast<u_char>(move.promotion)];
+    snapshot.enPassant = move.isEnPassant;
+    snapshot.whiteKingPos = kings[WHITE];
+    snapshot.blackKingPos = kings[BLACK];
+    snapshot.zobristKey = zobristKey;
 }

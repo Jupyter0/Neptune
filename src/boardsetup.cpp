@@ -23,6 +23,8 @@ void Position(Board& board, const std::string& input) {
         SetBB(board, fenString);
     }
 
+    board.UpdatePins(board.whiteToMove ? WHITE : BLACK);
+
     size_t movesIndex = input.find(" moves ");
     if (movesIndex != std::string::npos) {
         std::string movesPart = input.substr(movesIndex + 7);

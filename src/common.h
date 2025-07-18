@@ -52,9 +52,19 @@ extern uint64_t rank6;
 extern uint64_t rank7;
 extern uint64_t rank8;
 
+extern uint64_t fileA;
+extern uint64_t fileB;
+extern uint64_t fileC;
+extern uint64_t fileD;
+extern uint64_t fileE;
+extern uint64_t fileF;
+extern uint64_t fileG;
+extern uint64_t fileH;
+
 extern int infinity;
 
 extern std::array<std::array<uint64_t, 64>, 64> castleXOR;
+extern uint64_t lineBB[64][64];
 
 namespace NeptuneInternals
 {
@@ -134,5 +144,7 @@ NeptuneInternals::Move ParseUCIMove(const std::string& uci, NeptuneInternals::Pi
 std::vector<std::string> SplitFen(const std::string& s);
 
 std::string MoveToUCI(const NeptuneInternals::Move& move);
+
+void InitLineBB();
 
 #endif

@@ -3,4 +3,5 @@ g++ -std=c++17 -O2 -g \
     -Wshadow -Wconversion -Wsign-conversion \
     -fsanitize=undefined,address \
     -fno-omit-frame-pointer \
+    -fno-sanitize-recover=all \
     -o ./bin/Neptune src/*.cpp

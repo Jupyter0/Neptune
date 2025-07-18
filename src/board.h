@@ -11,6 +11,8 @@ public:
     MoveState history[256];
     int ply = 0;
 
+    uint64_t pinMask[64];
+
     uint8_t kings[2];
 
     uint64_t whiteAttacks;
@@ -39,8 +41,12 @@ public:
     void UpdateOccupancy();
     bool hasEnPassant() const;
     bool isKingInCheck(bool white);
-    bool isSquareAttacked(uint8_t square, Color attacker);
+    bool isSquareAttacked(uint8_t square, Color attacker, bool excludeKing);
+    bool isSquareAttacked(uint8_t* squares, int numSquares, Color attacker, bool excludeKing);
     uint8_t getEnPassantTarget() const;
+    uint64_t GetAttackersTo(uint8_t square, Color attackingSide);
+    void UpdatePins(Color forSide);
+    void SaveSnapshot(Move move);
 };
 
 #endif

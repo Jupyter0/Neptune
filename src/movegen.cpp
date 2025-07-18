@@ -3,32 +3,59 @@
 
 using namespace NeptuneInternals;
 
-void GenerateCastlingMoves(uint8_t castlingRights, uint64_t all, Move* moves, Color color, uint64_t whiteAttacks, uint64_t blackAttacks, int& count) {
+void GenerateCastlingMoves(Board& board, Move* moves, Color color, int& count) {
+    if (board.isKingInCheck(color == WHITE)) return;
+    uint64_t all = board.generalboards[2];
+
+    uint8_t from = color == WHITE ? e1 : e8;
+    
     if (color == WHITE) {
-        if (((castlingRights & 0b1000) != 0) && ((all & castlingBB[0]) == 0) && ((blackAttacks & bitMasks[f1]) == 0)) {
-            moves[count++] = Move(e1, g1);
-        }
-        if (((castlingRights & 0b0100) != 0) && ((all & castlingBB[1]) == 0) && ((blackAttacks & bitMasks[d1]) == 0) && ((blackAttacks & bitMasks[c1]) == 0)) {
-            moves[count++] = Move(e1, c1);
+        if (board.castlingRights & 0b1000) {
+            uint64_t clearance = bitMasks[f1] | bitMasks[g1];
+            uint8_t travel[2];
+            travel[0] = f1;
+            travel[1] = g1;
+            if (!(all & clearance) && !board.isSquareAttacked(travel, 2, BLACK, false)) {
+                moves[count++] = Move(from, g1);
+            }
+        } if (board.castlingRights & 0b0100) {
+            uint64_t clearance = bitMasks[d1] | bitMasks[c1] | bitMasks[b1];
+            uint8_t travel[2];
+            travel[0] = d1;
+            travel[1] = c1;
+            if (!(all & clearance) && !board.isSquareAttacked(travel, 2, BLACK, false)) {
+                moves[count++] = Move(from, c1);
+            }
         }
     } else {
-        if (((castlingRights & 0b0010) != 0) && ((all & castlingBB[2]) == 0) && ((whiteAttacks & bitMasks[f8]) == 0)) {
-            moves[count++] = Move(e8, g8);
-        }
-        if (((castlingRights & 0b0001) != 0) && ((all & castlingBB[3]) == 0) && ((whiteAttacks & bitMasks[d8]) == 0) && ((whiteAttacks & bitMasks[c8]) == 0)) {
-            moves[count++] = Move(e8, c8);
+        if (board.castlingRights & 0b0010) {
+            uint64_t clearance = bitMasks[f8] | bitMasks[g8];
+            uint8_t travel[2];
+            travel[0] = f8;
+            travel[1] = g8;
+            if (!(all & clearance) && !board.isSquareAttacked(travel, 2, WHITE, false)) {
+                moves[count++] = Move(from, g8);
+            }
+        } if (board.castlingRights & 0b0001) {
+            uint64_t clearance = bitMasks[d8] | bitMasks[c8] | bitMasks[b8];
+            uint8_t travel[2];
+            travel[0] = d8;
+            travel[1] = c8;
+            if (!(all & clearance) && !board.isSquareAttacked(travel, 2, WHITE, false)) {
+                moves[count++] = Move(from, c8);
+            }
         }
     }
 }
 
-void GenerateRookMoves(uint64_t pieces, Board& board, Color color, Move* moves, int& count) {
+void GenerateRookMoves(uint64_t pieces, Board& board, Color color, Move* moves, int& count, uint64_t limitMask = ~0ULL) {
     const uint64_t all = board.generalboards[2];
     const uint64_t friendly = board.generalboards[color];
     while (pieces) {
         uint8_t sq = static_cast<uint8_t>(__builtin_ctzll(pieces));
         pieces &= pieces -1;
 
-        uint64_t attacks = ROOK_ATTACKS(sq, all) & ~friendly;
+        uint64_t attacks = ROOK_ATTACKS(sq, all) & ~friendly & board.pinMask[sq] & limitMask;
 
         while (attacks) {
             uint8_t to = static_cast<uint8_t>(__builtin_ctzll(attacks));
@@ -38,14 +65,14 @@ void GenerateRookMoves(uint64_t pieces, Board& board, Color color, Move* moves, 
     }
 }
 
-void GenerateBishopMoves(uint64_t pieces, Board& board, Color color, Move* moves, int& count) {
+void GenerateBishopMoves(uint64_t pieces, Board& board, Color color, Move* moves, int& count, uint64_t limitMask = ~0ULL) {
     const uint64_t all = board.generalboards[2];
     const uint64_t friendly = board.generalboards[color];
     while (pieces) {
         uint8_t sq = static_cast<uint8_t>(__builtin_ctzll(pieces));
         pieces &= pieces -1;
 
-        uint64_t attacks = BISHOP_ATTACKS(sq, all) & ~friendly;
+        uint64_t attacks = BISHOP_ATTACKS(sq, all) & ~friendly & board.pinMask[sq] & limitMask;
 
         while (attacks) {
             uint8_t to = static_cast<uint8_t>(__builtin_ctzll(attacks));
@@ -55,21 +82,21 @@ void GenerateBishopMoves(uint64_t pieces, Board& board, Color color, Move* moves
     }
 }
 
-void GenerateSlidingMoves(Board& board, Color color, Move* moves, int& count) {
-    GenerateRookMoves(board.bitboards[color][3], board, color, moves, count);
-    GenerateBishopMoves(board.bitboards[color][2], board, color, moves, count);
+void GenerateSlidingMoves(Board& board, Color color, Move* moves, int& count, uint64_t limitMask = ~0ULL) {
+    GenerateRookMoves(board.bitboards[color][3], board, color, moves, count, limitMask);
+    GenerateBishopMoves(board.bitboards[color][2], board, color, moves, count, limitMask);
 
-    GenerateRookMoves(board.bitboards[color][4], board, color, moves, count);
-    GenerateBishopMoves(board.bitboards[color][4], board, color, moves, count);
+    GenerateRookMoves(board.bitboards[color][4], board, color, moves, count, limitMask);
+    GenerateBishopMoves(board.bitboards[color][4], board, color, moves, count, limitMask);
 }
 
-void GenerateKnightMoves(uint64_t pieces, Board& board, Color color, Move* moves, int& count) {
+void GenerateKnightMoves(uint64_t pieces, Board& board, Color color, Move* moves, int& count, uint64_t limitMask = ~0ULL) {
     const uint64_t friendly = board.generalboards[color];
     while(pieces) {
         uint8_t sq = static_cast<uint8_t>(__builtin_ctzll(pieces));
         pieces &= pieces - 1;
 
-        uint64_t attacks = attacksBB[KNIGHT-1][color][sq] & ~friendly;
+        uint64_t attacks = attacksBB[KNIGHT-1][color][sq] & ~friendly & board.pinMask[sq] & limitMask;
 
         while (attacks) {
             uint8_t to = static_cast<uint8_t>(__builtin_ctzll(attacks));
@@ -90,122 +117,100 @@ void GenerateKingMoves(uint64_t pieces, Board& board, Color color, Move* moves, 
         while (attacks) {
             uint8_t to = static_cast<uint8_t>(__builtin_ctzll(attacks));
             attacks &= attacks - 1;
+            if (board.isSquareAttacked(to, static_cast<Color>(1-color), true)) continue;
             moves[count++] = Move(sq, to);
         }
     }
 }
 
-void GenerateNonSlidingMoves(Board& board, Color color, Move* moves, int& count) {
-    GenerateKnightMoves(board.bitboards[color][1], board, color, moves, count);
+void GenerateNonSlidingMoves(Board& board, Color color, Move* moves, int& count, uint64_t limitMask = ~0ULL) {
+    GenerateKnightMoves(board.bitboards[color][1], board, color, moves, count, limitMask);
     GenerateKingMoves(board.bitboards[color][5], board, color, moves, count);
 }
 
-void GeneratePawnMoves(uint64_t pawns, uint64_t enemy, uint64_t all, Move* moves, Color color, int& count, uint8_t epSquare = 0) {
+void GeneratePawnMoves(uint64_t pawns, Board& board, Color color, Move* moves, int& count, uint64_t limitMask = ~0ULL) {
     int forward = (color == WHITE) ? 8 : -8;
     uint8_t startRank = (color == WHITE) ? 1 : 6;
     uint8_t promotionRank = (color == WHITE) ? 6 : 1;
+    uint64_t enemy = board.generalboards[1-color];
+    uint64_t all = board.generalboards[2];
+
+    uint64_t epTarget = board.hasEnPassant() ? board.getEnPassantTarget() : 0;
 
     while (pawns) {
         uint8_t sq = static_cast<uint8_t>(__builtin_ctzll(pawns));
         pawns &= pawns - 1;
-
+        if (board.pinMask[sq] == 0) continue;
         uint8_t rank = sq >> 3;
-
-        int step = sq + forward;
-        if (step < 0 || step >= 64) continue;
-        uint8_t oneStep = static_cast<uint8_t>(step);
-        if (oneStep < 64 && !(all & bitMasks[oneStep])) {
-            if (rank == promotionRank) {
-                moves[count++] = Move(sq, oneStep, 'q');
-                moves[count++] = Move(sq, oneStep, 'r');
-                moves[count++] = Move(sq, oneStep, 'b');
-                moves[count++] = Move(sq, oneStep, 'n');
-            } else {
-                moves[count++] = Move(sq, oneStep);
-
-                if (rank == startRank) {
-                    uint8_t twoStep = static_cast<uint8_t>(sq + 2 * forward);
-                    if (!(all & bitMasks[twoStep]) && !(all & bitMasks[oneStep])) {
-                        moves[count++] = Move(sq, twoStep);
-                    }
+        bool canDouble = (rank == startRank);
+        
+        uint64_t attacks = attacksBB[PAWN-1][color][sq] & board.pinMask[sq] & limitMask;
+        while (attacks) {
+            uint8_t target = static_cast<uint8_t>(__builtin_ctzll(attacks));
+            attacks &= attacks - 1;
+            if (target == epTarget) {
+                Move move = Move(sq, target, 0, true);
+                board.MakeMove(move);
+                if (!board.isKingInCheck(color == WHITE)) moves[count++] = move;
+                board.UnmakeMove();
+            } else if (bitMasks[target] & enemy) {
+                if (rank == promotionRank) {
+                    moves[count++] = Move(sq, target, 'q');
+                    moves[count++] = Move(sq, target, 'r');
+                    moves[count++] = Move(sq, target, 'b');
+                    moves[count++] = Move(sq, target, 'n');
                 }
+                else moves[count++] = Move(sq, target);
             }
         }
-
-        uint64_t attacks = attacksBB[WHITE][color][sq];
-        uint64_t normalCaptures = attacks & enemy;
-
-        while (normalCaptures) {
-            uint8_t targetSq = static_cast<uint8_t>(__builtin_ctzll(normalCaptures));
-            normalCaptures &= normalCaptures - 1;
-
+        if (((sq + forward) < 0) || ((sq + forward) >= 64)) continue;
+        uint8_t step = static_cast<uint8_t>(sq + forward);
+        if ((bitMasks[step] & all) || !(bitMasks[step] & board.pinMask[sq])) continue;
+        if (bitMasks[step] & limitMask) {
             if (rank == promotionRank) {
-                moves[count++] = Move(sq, targetSq, 'q');
-                moves[count++] = Move(sq, targetSq, 'r');
-                moves[count++] = Move(sq, targetSq, 'b');
-                moves[count++] = Move(sq, targetSq, 'n');
-            } else {
-                moves[count++] = Move(sq, targetSq);
-            }
+                moves[count++] = Move(sq, step, 'q');
+                moves[count++] = Move(sq, step, 'r');
+                moves[count++] = Move(sq, step, 'b');
+                moves[count++] = Move(sq, step, 'n');
+            } else moves[count++] = Move(sq, step);
         }
-
-        if (epSquare != 0) {
-            uint64_t epBB = bitMasks[epSquare];
-            if ((attacks & epBB) != 0) {
-                moves[count++] = Move(static_cast<uint8_t>(sq), epSquare, 0, true);
-            }
-        }
+        if (!canDouble) continue;
+        step = static_cast<uint8_t>(step + forward);
+        if (!(bitMasks[step] & limitMask)) continue;
+        if (bitMasks[step] & all) continue;
+        moves[count++] = Move(sq, step);
     }
 }
 
-int GeneratePseudoLegalMoves(Board& board, Move* moves /*Should be empty!*/) {
-    int count = 0;
-    uint8_t epTarget = board.hasEnPassant() ? board.getEnPassantTarget() : 0;
-    Color color = static_cast<Color>(board.whiteToMove ? WHITE : BLACK);
-
-    GenerateSlidingMoves(board, color, moves, count);
-    GenerateNonSlidingMoves(board, color, moves, count);
-    GeneratePawnMoves(board.bitboards[color][PAWN-1], board.generalboards[1-color], board.generalboards[2], moves, color, count, epTarget);
-
-    if (!board.isKingInCheck(board.whiteToMove)) 
-        GenerateCastlingMoves(board.castlingRights, board.generalboards[2], moves, color, board.whiteAttacks, board.blackAttacks, count);
-
-    return count;
-};
-
 int GenerateLegalMoves(Board& board, Move* moves /*Should be empty!*/) {
     int count = 0;
-    Move pseudoMoves[256];
-    int pseudoMoveCount = GeneratePseudoLegalMoves(board, pseudoMoves);
+    Color color = static_cast<Color>(board.whiteToMove ? WHITE : BLACK);
+    uint64_t limitMask = ~0ULL;
 
-    for (int i = 0; i < pseudoMoveCount; ++i) {
-        Move& move = pseudoMoves[i];
-        Color us = board.whiteToMove ? WHITE : BLACK;
-        board.MakeMove(move);
-        if (!board.isSquareAttacked(board.kings[us], static_cast<Color>(!us))) { // check if own king is not in check
-            moves[count++] = move;
-        }
-        board.UnmakeMove();
+    uint64_t checking = board.GetAttackersTo(board.kings[color], static_cast<Color>(1-color));
+    uint8_t numOfCheckers = static_cast<uint8_t>(__builtin_popcountll(checking));
+    if (numOfCheckers >= 2) {
+        GenerateKingMoves(board.bitboards[color][KING-1], board, color, moves, count);
+        return count;
+    } else if (numOfCheckers == 1) {
+        uint8_t attackerSquare = static_cast<uint8_t>(__builtin_ctzll(checking));
+        limitMask = lineBB[attackerSquare][board.kings[color]] | bitMasks[attackerSquare];
     }
+
+    GenerateSlidingMoves(board, color, moves, count, limitMask);
+    GenerateNonSlidingMoves(board, color, moves, count, limitMask);
+    GeneratePawnMoves(board.bitboards[color][PAWN-1], board, color, moves, count, limitMask);
+
+    GenerateCastlingMoves(board, moves, color, count);
 
     return count;
 }
 
 int GenerateCaptures(Board& board, Move* moves) {
     int count = 0;
-
-    Move pseudoMoves[256];
-    int pseudoCount = GeneratePseudoLegalMoves(board, pseudoMoves);
-
-    for (int i = 0; i < pseudoCount; i++) {
-        Move& move = pseudoMoves[i];
-        Piece captured = board.pieceAt[move.to];
-        
-        // Capture if opponent piece on 'to' square or promotion (since promotions are tactical)
-        if (captured != EMPTY || move.promotion != 0) {
-            moves[count++] = move;
-        }
-    }
-
-    return count;
+    (void) board;
+    (void) moves;
+    (void) count;
+    //TODO
+    return 0;
 }

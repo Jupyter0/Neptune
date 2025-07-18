@@ -15,9 +15,11 @@ int Quiescence(Board& board, int alpha, int beta, bool maximizingPlayer) {
     int captureCount = GenerateCaptures(board, captures);
 
     for (int i = 0; i < captureCount; ++i) {
-        board.MakeMove(captures[i]);
+        Move capture = captures[i];
 
-        if (board.isSquareAttacked(board.kings[maximizingPlayer ? WHITE : BLACK], maximizingPlayer ? BLACK : WHITE)) {
+        board.MakeMove(capture);
+
+        if (board.isSquareAttacked(board.kings[maximizingPlayer ? WHITE : BLACK], maximizingPlayer ? BLACK : WHITE, false)) {
             board.UnmakeMove();
             continue;
         }
@@ -60,29 +62,24 @@ int MiniMax(Board& board, int depth, bool maximizingPlayer, PVLine& line, Transp
     if (depth == 0) { line.clear(); return Quiescence(board, alpha, beta, maximizingPlayer); }
 
     Move moves[256];
-    int pseudoMoveCount = GeneratePseudoLegalMoves(board, moves);
+    int moveCount = GenerateLegalMoves(board, moves);
 
     if (ttMove.from != ttMove.to) {
-        for (int i = 0; i < pseudoMoveCount; ++i) {
+        for (int i = 0; i < moveCount; ++i) {
             if (moves[i] == ttMove) {
-                std::swap(moves[0], moves[i]);
+                std::swap(moves[1], moves[i]);
                 break;
             }
         }
     }
 
-    Color toPlay = maximizingPlayer ? WHITE : BLACK;
     int bestScore = maximizingPlayer ? -infinity + board.ply : infinity - board.ply;
     PVLine bestLine;
 
-    bool foundLegal = false;
     int alphaOrig = alpha;
-    for (int i = 0; i < pseudoMoveCount; ++i) {
+    for (int i = 0; i < moveCount; ++i) {
         Move move = moves[i];
         board.MakeMove(move);
-
-        if (board.isSquareAttacked(board.kings[toPlay], static_cast<Color>(1-toPlay))) { board.UnmakeMove(); continue; }
-        foundLegal = true;
         PVLine currentLine;
         int score = MiniMax(board, depth - 1, !maximizingPlayer, currentLine, tt, alpha, beta);
         if (maximizingPlayer) {
@@ -104,8 +101,8 @@ int MiniMax(Board& board, int depth, bool maximizingPlayer, PVLine& line, Transp
         if (beta <= alpha) break;
     }
 
-    if (!foundLegal) {
-        if (!(board.isSquareAttacked(board.kings[WHITE], BLACK) || board.isSquareAttacked(board.kings[BLACK], WHITE))) {
+    if (moveCount == 0) {
+        if (!(board.isSquareAttacked(board.kings[WHITE], BLACK, false) || board.isSquareAttacked(board.kings[BLACK], WHITE, false))) {
             return 0;
         }
     }
@@ -120,7 +117,7 @@ int MiniMax(Board& board, int depth, bool maximizingPlayer, PVLine& line, Transp
         flag = EXACT;
     }
 
-    if (foundLegal && !bestLine.empty()) {
+    if (moveCount != 0 && !bestLine.empty()) {
         tt.store(board.zobristKey, TTEntry{
             board.zobristKey,
             depth,
@@ -131,4 +128,31 @@ int MiniMax(Board& board, int depth, bool maximizingPlayer, PVLine& line, Transp
     }
 
     return bestScore;
+}
+
+int IterativeSearch(Board& board, int maxDepth, PVLine& line) {
+    TranspositionTable tt(25);
+    Move bestMove;
+    int finalScore = 0;
+    for (int currentDepth = 1; currentDepth <= maxDepth; ++currentDepth) {
+        PVLine currentLine;
+        int score = MiniMax(board, currentDepth, board.whiteToMove, currentLine, tt);
+        if (!currentLine.empty()) {
+            bestMove = currentLine[0];
+            line = currentLine;
+            finalScore = score;
+        }
+        
+        std::cout << "Searched depth " << currentDepth << ", eval: " << score << "\nCurrent Best: "
+        << MoveToUCI(bestMove) << "\n";
+
+        tt.store(board.zobristKey, TTEntry{
+            board.zobristKey,
+            currentDepth,
+            score,
+            EXACT,
+            bestMove
+        });
+    }
+    return finalScore;
 }

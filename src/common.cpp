@@ -57,6 +57,41 @@ std::string MoveToUCI(const Move& move) {
     return uci;
 }
 
+void InitLineBB() {
+    for (uint8_t from = 0; from < 64; ++from) {
+        for (uint8_t to = 0; to < 64; ++to) {
+            if (from == to) continue;
+            uint8_t fromRank = from >> 3;
+            uint8_t fromFile = from & 7;
+            uint8_t toRank = to >> 3;
+            uint8_t toFile = to & 7;
+
+            bool aligned = false;
+            if (fromRank == toRank) aligned = true;
+            else if (fromFile == toFile) aligned = true;
+            else if (std::abs(fromRank - toRank) == std::abs(fromFile - toFile)) aligned = true;
+
+            if (!aligned) { lineBB[from][to] = 0ULL; continue; }
+
+            int deltaRank = ((toRank-fromRank) > 0) - ((toRank-fromRank) < 0);
+            int deltaFile = ((toFile-fromFile) > 0) - ((toFile-fromFile) < 0);
+
+            uint64_t mask = 0;
+            uint8_t curRank = static_cast<uint8_t>(fromRank + deltaRank);
+            uint8_t curFile = static_cast<uint8_t>(fromFile + deltaFile);
+
+            while (curRank != toRank || curFile != toFile) {
+                int sq = curRank * 8 + curFile;
+                mask |= bitMasks[sq];
+                curRank = static_cast<uint8_t>(curRank + deltaRank);
+                curFile = static_cast<uint8_t>(curFile + deltaFile);
+            }
+
+            lineBB[from][to] = mask;
+        }
+    }
+}
+
 uint64_t attacksBB[6][2][64] = {
     {
         //Pawns
@@ -225,6 +260,15 @@ uint64_t rank6 = 0x0000FF0000000000ULL;
 uint64_t rank7 = 0x00FF000000000000ULL;
 uint64_t rank8 = 0xFF00000000000000ULL;
 
+uint64_t fileA = 0x0101010101010101;
+uint64_t fileB = 0x0202020202020202;
+uint64_t fileC = 0x0404040404040404;
+uint64_t fileD = 0x0808080808080808;
+uint64_t fileE = 0x1010101010101010;
+uint64_t fileF = 0x2020202020202020;
+uint64_t fileG = 0x4040404040404040;
+uint64_t fileH = 0x8080808080808080;
+
 std::array<std::array<uint64_t, 64>, 64> castleXOR = [] {
     std::array<std::array<uint64_t, 64>, 64> table{};
 
@@ -235,6 +279,8 @@ std::array<std::array<uint64_t, 64>, 64> castleXOR = [] {
 
     return table;
 }();
+
+uint64_t lineBB[64][64] = {};
 
 int infinity = 10000000;
 

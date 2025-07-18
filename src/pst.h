@@ -5,6 +5,8 @@
 
 using namespace NeptuneInternals;
 
+extern std::array<int, 7> staticValue;
+
 int PieceValue(Piece piece, int square, int remainingPieces);
 
 #endif

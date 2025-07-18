@@ -222,16 +222,7 @@ constexpr int endgamePST[6][64] = {
     },
 };
 
-constexpr std::array<int, 7> staticValue = []() {
-    std::array<int, 7> table {};
-    table[PAWN] = 100;
-    table[KNIGHT] = 300;
-    table[BISHOP] = 300;
-    table[ROOK] = 500;
-    table[QUEEN] = 900;
-    
-    return table;
-}();
+std::array<int, 7> staticValue = {0, 100, 300, 300, 500, 900, 0};
 
 
 int PieceValue(Piece piece, int square, int remainingPieces) {
