@@ -146,12 +146,13 @@ void GeneratePawnMoves(uint64_t pawns, Board& board, Color color, Move* moves, i
         uint8_t rank = sq >> 3;
         bool canDouble = (rank == startRank);
         uint64_t pinRay = board.pinVersion[sq] == board.globalPinVersion ? board.pinMask[sq] : ~0ULL;
+        limitMask |= epTarget == 0 ? 0 : bitMasks[epTarget];
         
         uint64_t attacks = attacksBB[PAWN-1][color][sq] & pinRay & limitMask;
         while (attacks) {
             uint8_t target = static_cast<uint8_t>(__builtin_ctzll(attacks));
             attacks &= attacks - 1;
-            if (target == epTarget) {
+            if (target == epTarget && epTarget != 0) {
                 Move move = Move(sq, target, 0, true);
                 board.MakeMove(move);
                 if (!board.isKingInCheck(color == WHITE)) moves[count++] = move;

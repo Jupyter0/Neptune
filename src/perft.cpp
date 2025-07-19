@@ -20,40 +20,40 @@ uint64_t PerftDivide(Board& board, int depth) {
     if (depth == 0) return 1;
     Move moves[256];
     int moveCount = GenerateLegalMoves(board, moves);
-    uint64_t totalNodes = 0;
-    for (int i = 0; i < moveCount; ++i) {
-        const Move& move = moves[i];
-        Board copy = board;
-        copy.MakeMove(move);
-        uint64_t nodes = Perft(copy, depth - 1);
-        totalNodes += nodes;
-        std::cout << MoveToUCI(move) << ": " << nodes << '\n';
-    }
-//    std::atomic<int> index(0);
-//    std::atomic<uint64_t> totalNodes = 0;
-//    std::mutex cout_mutex;
-//
-//    auto worker = [&]() {
-//        while(true) {
-//            int i = index.fetch_add(1);
-//            if (i >= moveCount) break;
-//
-//            const Move& move = moves[i];
-//            Board copy = board;
-//            copy.MakeMove(move);
-//            uint64_t nodes = Perft(copy, depth - 1);
-//            totalNodes.fetch_add(nodes, std::memory_order_relaxed);
-//
-//            std::lock_guard<std::mutex> lock(cout_mutex);
-//            std::cout << MoveToUCI(move) << ": " << nodes << '\n';
-//        }
-//    };
-//
-//    std::vector<std::thread> threads;
-//    for (uint i = 0; i < numThreads; ++i) {
-//        threads.emplace_back(worker);
+//    uint64_t totalNodes = 0;
+//    for (int i = 0; i < moveCount; ++i) {
+//        const Move& move = moves[i];
+//        Board copy = board;
+//        copy.MakeMove(move);
+//        uint64_t nodes = Perft(copy, depth - 1);
+//        totalNodes += nodes;
+//        std::cout << MoveToUCI(move) << ": " << nodes << '\n';
 //    }
-//    for (auto& t : threads) t.join();
+    std::atomic<int> index(0);
+    std::atomic<uint64_t> totalNodes = 0;
+    std::mutex cout_mutex;
+
+    auto worker = [&]() {
+        while(true) {
+            int i = index.fetch_add(1);
+            if (i >= moveCount) break;
+
+            const Move& move = moves[i];
+            Board copy = board;
+            copy.MakeMove(move);
+            uint64_t nodes = Perft(copy, depth - 1);
+            totalNodes.fetch_add(nodes, std::memory_order_relaxed);
+
+            std::lock_guard<std::mutex> lock(cout_mutex);
+            std::cout << MoveToUCI(move) << ": " << nodes << '\n';
+        }
+    };
+
+    std::vector<std::thread> threads;
+    for (uint i = 0; i < numThreads; ++i) {
+        threads.emplace_back(worker);
+    }
+    for (auto& t : threads) t.join();
 
     return totalNodes;
 }

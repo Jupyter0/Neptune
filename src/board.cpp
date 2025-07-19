@@ -115,10 +115,6 @@ void Board::UnmakeMove() {
     Piece captured = state.GetCapturedPiece();
     Piece promoted = state.GetPromotedPiece();
 
-    if (moved == EMPTY) {
-        std::cout << "Bugged Bitpacking\n" << std::flush;
-    }
-
     // Handle pieceAt[] restoration
     pieceAt[from] = moved;
     pieceAt[to] = captured;
@@ -288,16 +284,19 @@ void Board::UpdatePins(Color forSide) {
 
 void Board::SaveSnapshot(Move move) {
     MoveState& snapshot = history[ply++];
-    snapshot.SetCastlingRights(castlingRights);
-    snapshot.SetEnPassantTarget(enPassantSquare);
-    snapshot.SetHalfmoveClock(halfmoveClock);
-    snapshot.SetFullMoveNumber(fullmoveNumber);
-    snapshot.SetFromTo(move.from, move.to);
-    snapshot.SetIsWhiteToMove(whiteToMove);
+    uint64_t state = 0;
 
-    snapshot.SetCapturedPiece(pieceAt[move.to]);
-    snapshot.SetMovedPiece(pieceAt[move.from]);
-    snapshot.SetPromotedPiece(charToPiece[static_cast<u_char>(move.promotion)]);
-    snapshot.SetIsEnpassant(move.isEnPassant);
-    snapshot.SetZobristKey(zobristKey);
+    state |= static_cast<uint64_t>(castlingRights & 0xF) << 60;
+    state |= static_cast<uint64_t>(fullmoveNumber & 0x3FF) << 50;
+    state |= static_cast<uint64_t>(move.isEnPassant) << 49;
+    state |= static_cast<uint64_t>(enPassantSquare & 0x7F) << 42;
+    state |= static_cast<uint64_t>(pieceAt[move.to] & 0x7) << 39;
+    state |= static_cast<uint64_t>(pieceAt[move.from] & 0x7) << 36;
+    state |= static_cast<uint64_t>(charToPiece[static_cast<uint8_t>(move.promotion)] & 0x7) << 33;
+    state |= static_cast<uint64_t>(move.from & 0x3F) << 27;
+    state |= static_cast<uint64_t>(move.to & 0x3F) << 21;
+    state |= static_cast<uint64_t>(whiteToMove) << 20;
+    state |= static_cast<uint64_t>(halfmoveClock) << 12;
+
+    snapshot.SetState(state, zobristKey);
 }

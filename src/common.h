@@ -278,6 +278,11 @@ namespace NeptuneInternals
         uint64_t GetZobristKey() {
             return stateLow;
         }
+
+        __always_inline void SetState(uint64_t high, uint64_t low) {
+            this->stateHigh = high;
+            this->stateLow = low;
+        }
     };
 
     struct Move {
