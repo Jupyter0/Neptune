@@ -189,6 +189,7 @@ void GeneratePawnMoves(uint64_t pawns, Board& board, Color color, Move* moves, i
 int GenerateLegalMoves(Board& board, Move* moves /*Should be empty!*/) {
     int count = 0;
     Color color = static_cast<Color>(board.whiteToMove ? WHITE : BLACK);
+    board.UpdatePins(color);
     uint64_t limitMask = ~0ULL;
 
     uint64_t checking = board.GetAttackersTo(board.kings[color], static_cast<Color>(1-color));

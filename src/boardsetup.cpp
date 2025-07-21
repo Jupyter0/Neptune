@@ -22,7 +22,6 @@ void Position(Board& board, const std::string& input) {
         }
         SetBB(board, fenString);
     }
-    board.UpdatePins(board.whiteToMove ? WHITE : BLACK);
 
     size_t movesIndex = input.find(" moves ");
     if (movesIndex != std::string::npos) {
@@ -156,4 +155,6 @@ void SetBB(Board& board, const std::string& fen) {
     hash ^= zobristCastling[board.castlingRights]; // 4-bit number: e.g. 1101b = white KQ and black K
 
     board.zobristKey = hash;
+
+    board.UpdatePins(board.whiteToMove ? WHITE : BLACK);
 }

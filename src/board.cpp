@@ -89,14 +89,12 @@ void Board::MakeMove(Move move) {
     fullmoveNumber += !whiteToMove;
 
     UpdateOccupancy();
-    UpdatePins(whiteToMove ? WHITE : BLACK);
 }
 
 void Board::UnmakeMove() {
     if (ply == 0) return;
     MoveState& state = history[--ply];
 
-    // Restore game state
     castlingRights = state.GetCastlingRights();
     enPassantSquare = state.GetEnPassantTarget();
     halfmoveClock = state.GetHalfMoveClock();
@@ -108,75 +106,54 @@ void Board::UnmakeMove() {
     uint64_t fromBB = bitMasks[from];
     uint64_t toBB = bitMasks[to];
 
-    Color side = whiteToMove ? WHITE : BLACK;
-    Color opponent = static_cast<Color>(1 - side);
+    Color side = static_cast<Color>(!whiteToMove);
+    Color opponent = static_cast<Color>(whiteToMove);
 
     Piece moved = state.GetMovedPiece();
     Piece captured = state.GetCapturedPiece();
     Piece promoted = state.GetPromotedPiece();
+    Piece resultPiece = promoted != EMPTY ? promoted : moved;
 
-    // Handle pieceAt[] restoration
+    int moveDelta = from - to;
+    bool isCastle = moved == KING && (std::abs(moveDelta) == 2);
+
     pieceAt[from] = moved;
+
+    if (captured == EMPTY && promoted == EMPTY && !state.GetIsEnpassant() && !isCastle) {
+        pieceAt[to] = EMPTY;
+        bitboards[side][moved - 1] ^= fromBB | toBB;
+        UpdateOccupancy();
+        return;
+    }
     pieceAt[to] = captured;
 
-    // Handle promotions
-    if (moved == PAWN && promoted != EMPTY) {
-        // Remove promoted piece from bitboard
-        bitboards[side][promoted - 1] &= ~toBB;
-        // Add pawn back
-        bitboards[side][PAWN - 1] |= fromBB;
-    } else {
-        // Undo normal piece movement
-        bitboards[side][moved - 1] &= ~toBB;
-        bitboards[side][moved - 1] |= fromBB;
-    }
+    bitboards[side][resultPiece - 1] &= ~toBB;
+    bitboards[side][moved -1 ] |= fromBB;
 
-    // Handle captures
     if (captured != EMPTY) {
         bitboards[opponent][captured - 1] |= toBB;
     }
 
-    // Handle en-passant
-    if (moved == PAWN && state.GetIsEnpassant()) {
+    if (state.GetIsEnpassant()) {
         int capSq = whiteToMove ? to - 8 : to + 8;
         bitboards[opponent][0] |= bitMasks[capSq];
         pieceAt[capSq] = PAWN;
     }
-
-    // Undo castling rook movement
-    if (moved == KING) {
-        if (from == e1 && to == g1) {
-            // White kingside
-            bitboards[WHITE][ROOK - 1] &= ~bitMasks[f1];
-            bitboards[WHITE][ROOK - 1] |= bitMasks[h1];
-            pieceAt[f1] = EMPTY;
-            pieceAt[h1] = ROOK;
-        } else if (from == e1 && to == c1) {
-            // White queenside
-            bitboards[WHITE][ROOK - 1] &= ~bitMasks[d1];
-            bitboards[WHITE][ROOK - 1] |= bitMasks[a1];
-            pieceAt[d1] = EMPTY;
-            pieceAt[a1] = ROOK;
-        } else if (from == e8 && to == g8) {
-            // Black kingside
-            bitboards[BLACK][ROOK - 1] &= ~bitMasks[f8];
-            bitboards[BLACK][ROOK - 1] |= bitMasks[h8];
-            pieceAt[f8] = EMPTY;
-            pieceAt[h8] = ROOK;
-        } else if (from == e8 && to == c8) {
-            // Black queenside
-            bitboards[BLACK][ROOK - 1] &= ~bitMasks[d8];
-            bitboards[BLACK][ROOK - 1] |= bitMasks[a8];
-            pieceAt[d8] = EMPTY;
-            pieceAt[a8] = ROOK;
-        }
+    
+    if (isCastle) {
+        uint8_t rookTo = from - Sign(moveDelta);
+        uint8_t rookFrom = (!whiteToMove * a8) + (7 * (moveDelta == -2));
+        bitboards[side][ROOK - 1] &= ~bitMasks[rookTo];
+        bitboards[side][ROOK - 1] |= bitMasks[rookFrom];
+        pieceAt[rookTo] = EMPTY;
+        pieceAt[rookFrom] = ROOK;
     }
 
     zobristKey = state.GetZobristKey();
 
     UpdateOccupancy();   // recompute generalboards[3]
-    UpdatePins(whiteToMove ? WHITE : BLACK);
 }
+
 void Board::UpdateOccupancy() {
     generalboards[WHITE] = bitboards[WHITE][0] | bitboards[WHITE][1] | bitboards[WHITE][2] | bitboards[WHITE][3] | bitboards[WHITE][4] | bitboards[WHITE][5];
     generalboards[BLACK] = bitboards[BLACK][0] | bitboards[BLACK][1] | bitboards[BLACK][2] | bitboards[BLACK][3] | bitboards[BLACK][4] | bitboards[BLACK][5];

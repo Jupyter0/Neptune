@@ -92,6 +92,10 @@ void InitLineBB() {
     }
 }
 
+int Sign(int num) {
+    return (0 < num) - (num < 0);
+}
+
 uint64_t attacksBB[6][2][64] = {
     {
         //Pawns

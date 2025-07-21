@@ -326,4 +326,6 @@ std::string MoveToUCI(const NeptuneInternals::Move& move);
 
 void InitLineBB();
 
+int Sign(int num);
+
 #endif
