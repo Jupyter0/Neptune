@@ -329,7 +329,7 @@ if __name__ == "__main__":
                         nodesFound = int(line.strip().replace("Nodes searched: ", ""))
                         break
                 except queue.Empty:
-                    print(f"\r{fen} at depth {depth + 1} ({round(time.time() - startTime, 1)}s)", end='', flush=True)
+                    print(f"\r{fen} at depth {depth + 1}: ({round(time.time() - startTime, 1)}s)", end='', flush=True)
 
             if nodesFound == FenTests.perftResults[testFenI][depth]:
                 print(f"\r{fen} at depth {depth + 1}: Pass          ")

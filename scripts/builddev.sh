@@ -1,0 +1,1 @@
+g++ -g -O1 -Wall -Wextra -fsanitize=address,undefined -fno-omit-frame-pointer -o ./bin/Neptune src/*.cpp
