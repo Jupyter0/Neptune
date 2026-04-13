@@ -248,7 +248,7 @@ uint64_t bitMasks[64] = {
     1ULL << a8, 1ULL << b8, 1ULL << c8, 1ULL << d8, 1ULL << e8, 1ULL << f8, 1ULL << g8, 1ULL << h8, 
 };
 
-uint64_t castlingBB[4] = {
+uint64_t castlingClearanceBB[4] = {
     (1ULL << f1) | (1ULL << g1),              // White king-side
     (1ULL << b1) | (1ULL << c1) | (1ULL << d1), // White queen-side
     (1ULL << f8) | (1ULL << g8),              // Black king-side

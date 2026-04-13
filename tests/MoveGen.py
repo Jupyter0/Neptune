@@ -13,7 +13,7 @@ STOCKFISH = PATH.joinpath("/bin/stockfish-ubuntu-x86-64-avx2")
 class FenTests:
     test_fens = [
         "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
-        "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1,",
+        "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1",
         "4k3/8/8/8/8/8/8/4K2R w K - 0 1",
         "4k3/8/8/8/8/8/8/R3K3 w Q - 0 1" ,
         "4k2r/8/8/8/8/8/8/4K3 w k - 0 1" ,

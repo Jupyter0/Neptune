@@ -20,7 +20,7 @@ constexpr int midgamePST[6][64] = {
         0,   0,   0,   0,   0,   0,   0,   0,
     },
     {
-        //Knights, Knight on the rim is dim, they should also stay back to not get bullied by pawns
+      //Knights, Knight on the rim is dim, they should also stay back to not get bullied by pawns
       -50, -50, -50, -50, -50, -50, -50, -50,
 
       -50, -20, -10, -20, -20, -10, -20, -50,
