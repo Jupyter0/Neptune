@@ -18,7 +18,7 @@ extern uint numThreads;
 #define ROOK_ATTACKS(sq, occ) (rookAttackTable[sq][((occ & rookBlockerMask[sq]) * rookMagic[sq]) >> rookShift[sq]])
 #define BISHOP_ATTACKS(sq, occ) (bishopAttackTable[sq][((occ & bishopBlockerMask[sq]) * bishopMagic[sq]) >> bishopShift[sq]])
 
-extern uint64_t zobristPiece[2][6][64];  // [color][pieceType][square]
+extern uint64_t zobristPiece[2][6][64];  // [color][pieceType - 1][square]
 extern uint64_t zobristEnPassant[8];    // [file]
 extern uint64_t zobristCastling[16];    // 4-bit castling rights (16 possibilities)
 extern uint64_t zobristSideToMove;      // Just one value

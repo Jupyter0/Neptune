@@ -25,29 +25,43 @@ void Board::MakeMove(Move move) {
     state |= static_cast<uint64_t>(move.from & 0x3F) << 6;
     state |= static_cast<uint64_t>(move.to & 0x3F);
 
+    if (enPassantSquare != 0) {
+        zobristKey ^= zobristEnPassant[enPassantSquare & 7];
+    }
     enPassantSquare = 0;
 
-    bitboards[side][movedPiece - 1] ^= fromBB | toBB;
-    generalboards[side] ^= fromBB | toBB;
+    zobristKey ^= zobristPiece[side][movedPiece - 1][from];
+    zobristKey ^= zobristPiece[side][movedPiece - 1][to];
+    bitboards[side][movedPiece - 1] &= ~fromBB;
+    bitboards[side][movedPiece - 1] |= toBB;
+    generalboards[side] &= ~fromBB;
+    generalboards[side] |= toBB;
     pieceAt[from] = EMPTY;
     pieceAt[to] = movedPiece;
 
     ++halfmoveClock;
+
+    zobristKey ^= zobristCastling[castlingRights];
     castlingRights &= ~(castlingClearTable[from] | castlingClearTable[to]);
 
     if (movedPiece == PAWN) {
         halfmoveClock = 0;
         bool isDouble = std::abs(to - from) == 16;
-        enPassantSquare = static_cast<uint8_t>(((1 << 6) | static_cast<uint8_t>(from + forwards)) * isDouble * (movedPiece == PAWN)); 
+        enPassantSquare = static_cast<uint8_t>(((1 << 6) | static_cast<uint8_t>(from + forwards)) * isDouble * (movedPiece == PAWN));
+        if (isDouble)
+            zobristKey ^= zobristEnPassant[enPassantSquare & 7];
     }
     if (capturedPiece != EMPTY) {
         state |= 1ULL << 41;
         halfmoveClock = 0;
+        zobristKey ^= zobristPiece[opponent][capturedPiece - 1][to];
         bitboards[opponent][capturedPiece - 1] &= ~toBB;
         generalboards[opponent] &= ~toBB;
     }
     if (move.promotion != 0) {
         Piece promotion = NeptuneInternals::charToPiece[static_cast<u_char>(move.promotion)];
+        zobristKey ^= zobristPiece[side][PAWN - 1][to];
+        zobristKey ^= zobristPiece[side][promotion - 1][to];
         bitboards[side][PAWN - 1] &= ~toBB;
         bitboards[side][promotion - 1] |= toBB;
         pieceAt[to] = promotion;
@@ -56,6 +70,7 @@ void Board::MakeMove(Move move) {
         uint8_t capSq = to - forwards;
         state |= static_cast<uint64_t>(capSq & 0x3F) << 42;
         uint64_t capBB = bitMasks[capSq];
+        zobristKey ^= zobristPiece[opponent][PAWN - 1][capSq];
         bitboards[opponent][PAWN - 1] &= ~capBB;
         generalboards[opponent] &= ~capBB;
         pieceAt[capSq] = EMPTY;
@@ -69,16 +84,19 @@ void Board::MakeMove(Move move) {
             generalboards[side] ^= rookToFrom;
 
             uint8_t sq = static_cast<uint8_t>(__builtin_ctzll(rookToFrom));
+            zobristKey ^= zobristPiece[side][ROOK - 1][sq];
             rookToFrom &= rookToFrom - 1;
             pieceAt[sq] = static_cast<Piece>(ROOK - pieceAt[sq]);
             sq = static_cast<uint8_t>(__builtin_ctzll(rookToFrom));
+            zobristKey ^= zobristPiece[side][ROOK - 1][sq];
             pieceAt[sq] = static_cast<Piece>(ROOK - pieceAt[sq]);
         }
     }
 
+    zobristKey ^= zobristCastling[castlingRights];
     whiteToMove = !whiteToMove;
     zobristKey ^= zobristSideToMove;
-    fullmoveNumber += !whiteToMove;
+    fullmoveNumber += (side == BLACK);
 
     MoveState& snapshot = history[ply++];
     snapshot.SetState(state);
@@ -86,6 +104,10 @@ void Board::MakeMove(Move move) {
 
 void Board::UnmakeMove() {
     if (ply == 0) return;
+
+    uint8_t oldCastling = castlingRights;
+    uint8_t oldEnPassant = enPassantSquare;
+
     uint64_t state = history[--ply].GetState();
 
     uint8_t to = state & 0x3F;
@@ -107,22 +129,30 @@ void Board::UnmakeMove() {
     uint64_t fromBB = bitMasks[from];
     uint64_t toBB = bitMasks[to];
 
-    bitboards[side][movedPiece - 1] ^= toBB | fromBB;
-    generalboards[side] ^= toBB | fromBB;
+    zobristKey ^= zobristPiece[side][movedPiece - 1][from];
+    zobristKey ^= zobristPiece[side][movedPiece - 1][to];
+    bitboards[side][movedPiece - 1] &= ~toBB;
+    bitboards[side][movedPiece - 1] |= fromBB;
+    generalboards[side] &= ~toBB;
+    generalboards[side] |= fromBB;
     pieceAt[to] = EMPTY;
     pieceAt[from] = movedPiece;
 
     if (isCapture) {
+        zobristKey ^= zobristPiece[opponent][capturedPiece - 1][to];
         bitboards[opponent][capturedPiece - 1] |= toBB;
         generalboards[opponent] |= toBB;
         pieceAt[to] = capturedPiece;
     }
     if (promoted != EMPTY) {
+        zobristKey ^= zobristPiece[side][PAWN - 1][to];
+        zobristKey ^= zobristPiece[side][promoted - 1][to];
         bitboards[side][promoted - 1] &= ~toBB;
     }
     if (isEnpassant) {
         uint8_t capSq = static_cast<uint8_t>((state >> 42) & 0x3F);
         uint64_t capBB = bitMasks[capSq];
+        zobristKey ^= zobristPiece[opponent][PAWN - 1][capSq];
         bitboards[opponent][PAWN - 1] |= capBB;
         generalboards[opponent] |= capBB;
         pieceAt[capSq] = PAWN;
@@ -136,13 +166,26 @@ void Board::UnmakeMove() {
 
             uint8_t sq = static_cast<uint8_t>(__builtin_ctzll(rookToFrom));
             rookToFrom &= rookToFrom - 1;
+            zobristKey ^= zobristPiece[side][ROOK - 1][sq];
             pieceAt[sq] = static_cast<Piece>(ROOK - pieceAt[sq]);
             sq = static_cast<uint8_t>(__builtin_ctzll(rookToFrom));
+            zobristKey ^= zobristPiece[side][ROOK - 1][sq];
             pieceAt[sq] = static_cast<Piece>(ROOK - pieceAt[sq]);
         }
     }
+
+    if (oldCastling != castlingRights) {
+        zobristKey ^= zobristCastling[oldCastling];
+        zobristKey ^= zobristCastling[castlingRights];
+    }
+
+    if (oldEnPassant != 0)
+        zobristKey ^= zobristEnPassant[oldEnPassant & 7];
+    if (enPassantSquare != 0)
+        zobristKey ^= zobristEnPassant[enPassantSquare & 7];
     
-    fullmoveNumber -= (side == WHITE);
+    fullmoveNumber -= (side == BLACK);
+    zobristKey ^= zobristSideToMove;
 }
 
 bool Board::hasEnPassant() const {
