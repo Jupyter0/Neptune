@@ -22,7 +22,7 @@ public:
 
     uint64_t bitboards[2][6]; //Pawn = 0, Knight = 1, Bishop = 2, Rook = 3, Queen = 4, King = 5
 
-    uint64_t generalboards[3];
+    uint64_t generalboards[2];
 
     bool whiteToMove;
 
@@ -48,7 +48,6 @@ public:
     uint8_t getEnPassantTarget() const;
     uint64_t GetAttackersTo(uint8_t square, Color attackingSide);
     void UpdatePins(Color forSide);
-    void SaveSnapshot(Move move);
 };
 
 #endif

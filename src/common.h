@@ -89,7 +89,13 @@ namespace NeptuneInternals
     /*
     @brief Data is packed into 8 bytes as follows:
 
-    Ehhhhhhhfeeeeeekkkkpppcccmmmfffffftttttt
+    CCCCCCISEhhhhhhhfeeeeeekkkkpppcccmmmfffffftttttt
+
+    C: ep cap square
+
+    I: is capture
+
+    S: side
 
     E: move enpassant flag
     
